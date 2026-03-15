@@ -5,11 +5,31 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
+import { useCompany } from "../../contexts/CompanyContext";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+  Dashboard: undefined;
+  ClientsList: undefined;
+  ProductsList: undefined;
+  OrdersList: undefined;
+  InvoicesList: undefined;
+};
+
+declare global {
+  namespace ReactNavigation {
+    interface RootParamList extends RootStackParamList {}
+  }
+}
 
 export const Home: React.FC = () => {
   const { user, logout, isLoading } = useAuth();
+  const { company } = useCompany();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -22,6 +42,33 @@ export const Home: React.FC = () => {
       setLoggingOut(false);
     }
   };
+
+  const menuItems = [
+    {
+      id: 'clients',
+      icon: '👥',
+      label: 'Clientes',
+      onPress: () => navigation.navigate('ClientsList' as keyof RootStackParamList),
+    },
+    {
+      id: 'products',
+      icon: '📦',
+      label: 'Produtos',
+      onPress: () => navigation.navigate('ProductsList' as keyof RootStackParamList),
+    },
+    {
+      id: 'orders',
+      icon: '📋',
+      label: 'Ordens de Serviço',
+      onPress: () => navigation.navigate('OrdersList' as keyof RootStackParamList),
+    },
+    {
+      id: 'invoices',
+      icon: '🧾',
+      label: 'Notas Fiscais',
+      onPress: () => navigation.navigate('InvoicesList' as keyof RootStackParamList),
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -40,86 +87,160 @@ export const Home: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Opero</Text>
+        <View>
+          <Text style={styles.title}>Opero</Text>
+          <Text style={styles.subtitle}>{company?.name || 'Sua Empresa'}</Text>
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.logoutButtonHeader,
+            (loggingOut || isLoading) && styles.logoutButtonDisabled,
+          ]}
+          onPress={handleLogout}
+          disabled={loggingOut || isLoading}
+        >
+          {loggingOut ? (
+            <ActivityIndicator color="#EF4444" size="small" />
+          ) : (
+            <Text style={styles.logoutButtonHeaderText}>Sair</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Main Content */}
-      <View style={styles.content}>
-        <View style={styles.card}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Welcome Card */}
+        <View style={styles.welcomeCard}>
           <Text style={styles.welcomeText}>Bem-vindo! 👋</Text>
           <Text style={styles.userName}>{user?.email}</Text>
-          <Text style={styles.companyName}>Dashboard</Text>
+          {company && (
+            <View style={styles.companyInfoContainer}>
+              <Text style={styles.infLabel}>Empresa:</Text>
+              <Text style={styles.infValue}>{company.name}</Text>
+              <Text style={styles.infValue} style={{ color: '#9CA3AF', marginTop: 4 }}>
+                {company.city}, {company.state}
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Menu Rápido */}
-        <View style={styles.menuGrid}>
-          <TouchableOpacity style={styles.menuItem} disabled>
-            <Text style={styles.menuIcon}>📋</Text>
-            <Text style={styles.menuLabel}>Ordens de Serviço</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} disabled>
-            <Text style={styles.menuIcon}>📦</Text>
-            <Text style={styles.menuLabel}>Produtos</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} disabled>
-            <Text style={styles.menuIcon}>🧾</Text>
-            <Text style={styles.menuLabel}>Nota Fiscal</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} disabled>
-            <Text style={styles.menuIcon}>⚙️</Text>
-            <Text style={styles.menuLabel}>Configurações</Text>
-          </TouchableOpacity>
+        {/* Menu Grid */}
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>Gerenciamento</Text>
+          <View style={styles.menuGrid}>
+            {menuItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.menuItem}
+                onPress={item.onPress}
+              >
+                <Text style={styles.menuIcon}>{item.icon}</Text>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* Logout Button */}
-      <TouchableOpacity
-        style={[
-          styles.logoutButton,
-          (loggingOut || isLoading) && styles.logoutButtonDisabled,
-        ]}
-        onPress={handleLogout}
-        disabled={loggingOut || isLoading}
-        activeOpacity={0.8}
-      >
-        {loggingOut ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
-        ) : (
-          <Text style={styles.logoutButtonText}>Sair</Text>
-        )}
-      </TouchableOpacity>
+        {/* Quick Stats */}
+        <View style={styles.statsSection}>
+          <Text style={styles.menuSectionTitle}>Status</Text>
+          <View style={styles.statsGrid}>
+            <StatCard
+              icon="📋"
+              label="Ordens"
+              value="0"
+              color="#06B6D4"
+            />
+            <StatCard
+              icon="👥"
+              label="Clientes"
+              value="0"
+              color="#EC4899"
+            />
+            <StatCard
+              icon="📦"
+              label="Produtos"
+              value="0"
+              color="#F59E0B"
+            />
+            <StatCard
+              icon="🧾"
+              label="NFs"
+              value="0"
+              color="#8B5CF6"
+            />
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 };
+
+function StatCard({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+  return (
+    <View style={styles.statCard}>
+      <Text style={[styles.statIcon, { color }]}>{icon}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFB",
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
   },
   header: {
-    marginBottom: 32,
-    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     color: "#1F2937",
+    marginBottom: 2,
   },
-  content: {
-    flex: 1,
+  subtitle: {
+    fontSize: 13,
+    color: "#6B7280",
   },
-  card: {
+  logoutButtonHeader: {
+    backgroundColor: "#FEE2E2",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  logoutButtonHeaderText: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  logoutButtonDisabled: {
+    opacity: 0.6,
+  },
+  scrollContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    paddingBottom: 40,
+  },
+  welcomeCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 24,
+    padding: 20,
     marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: "#2563EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -127,68 +248,103 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   welcomeText: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#6B7280",
-    marginBottom: 8,
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1F2937",
     marginBottom: 4,
   },
-  companyName: {
-    fontSize: 14,
+  userName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  companyInfoContainer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  infLabel: {
+    fontSize: 12,
     color: "#9CA3AF",
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  infValue: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  menuSection: {
+    marginBottom: 24,
+  },
+  statsSection: {
+    marginBottom: 24,
+  },
+  menuSectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
   },
   menuGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 20,
+    gap: 12,
   },
   menuItem: {
     width: "48%",
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 20,
     alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
-    opacity: 0.6,
   },
   menuIcon: {
     fontSize: 32,
     marginBottom: 8,
   },
   menuLabel: {
-    fontSize: 12,
-    color: "#6B7280",
+    fontSize: 13,
+    color: "#1F2937",
     textAlign: "center",
     fontWeight: "600",
   },
-  logoutButton: {
-    backgroundColor: "#EF4444",
-    borderRadius: 8,
-    paddingVertical: 14,
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  statCard: {
+    width: "48%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
     alignItems: "center",
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
-  logoutButtonDisabled: {
-    backgroundColor: "#9CA3AF",
-    opacity: 0.7,
+  statIcon: {
+    fontSize: 28,
+    marginBottom: 8,
   },
-  logoutButtonText: {
-    fontSize: 16,
+  statValue: {
+    fontSize: 20,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#1F2937",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
   },
 });
