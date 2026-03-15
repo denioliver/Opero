@@ -12,12 +12,10 @@ import { InvoicesProvider } from "./src/contexts/InvoicesContext";
 import { Login } from "./src/Components/Login";
 import { CompanyRegister } from "./src/Components/CompanyRegister";
 import { Home } from "./src/Components/Home";
-import { ClientsList } from "./src/Components/Clients/ClientsList";
-import { ClientForm } from "./src/Components/Clients/ClientForm";
-import { ProductsList } from "./src/Components/Products/ProductsList";
-import { ProductForm } from "./src/Components/Products/ProductForm";
-import { OrdersList } from "./src/Components/Orders/OrdersList";
-import { InvoicesList } from "./src/Components/Invoices/InvoicesList";
+import { ClientsScreen } from "./src/Components/Clients";
+import { ProductsScreen } from "./src/Components/Products";
+import { OrdersScreen } from "./src/Components/Orders";
+import { InvoicesScreen } from "./src/Components/Invoices";
 
 const Stack = createStackNavigator();
 
@@ -60,51 +58,37 @@ function AppStack() {
         }}
       />
 
-      {/* Clients Stack */}
+      {/* Clients */}
       <Stack.Screen
         name="ClientsList"
-        component={ClientsList}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="ClientForm"
-        component={ClientForm}
+        component={ClientsScreen}
         options={{
           headerShown: false,
         }}
       />
 
-      {/* Products Stack */}
+      {/* Products */}
       <Stack.Screen
         name="ProductsList"
-        component={ProductsList}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="ProductForm"
-        component={ProductForm}
+        component={ProductsScreen}
         options={{
           headerShown: false,
         }}
       />
 
-      {/* Orders Stack */}
+      {/* Orders */}
       <Stack.Screen
         name="OrdersList"
-        component={OrdersList}
+        component={OrdersScreen}
         options={{
           headerShown: false,
         }}
       />
 
-      {/* Invoices Stack */}
+      {/* Invoices */}
       <Stack.Screen
         name="InvoicesList"
-        component={InvoicesList}
+        component={InvoicesScreen}
         options={{
           headerShown: false,
         }}
