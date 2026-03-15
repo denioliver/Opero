@@ -47,54 +47,77 @@ const getErrorMessage = (errorCode: string): string => {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
 
   // Monitora mudanças de autenticação do Firebase
   useEffect(() => {
     let isMounted = true;
+    let timeout: NodeJS.Timeout;
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
-      if (!isMounted) return;
+    console.log('[AuthContext] Inicializando listener...');
 
-      try {
-        if (firebaseUser) {
-          // Usuário está logado
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            name: firebaseUser.displayName || 'Usuário',
-            company: '',
-          });
-        } else {
-          // Usuário saiu
-          setUser(null);
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (firebaseUser: FirebaseUser | null) => {
+        if (!isMounted) {
+          console.log('[AuthContext] Component desmontado, ignorando');
+          return;
         }
-      } catch (err) {
-        console.error('Erro ao processar mudança de autenticação:', err);
-      } finally {
-        if (isMounted) {
-          setIsInitializing(false);
+
+        console.log('[AuthContext] onAuthStateChanged:', {
+          logado: !!firebaseUser,
+          email: firebaseUser?.email,
+        });
+
+        try {
+          if (firebaseUser) {
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              name: firebaseUser.displayName || 'Usuário',
+              company: '',
+            });
+          } else {
+            setUser(null);
+          }
+        } catch (err) {
+          console.error('[AuthContext] Erro ao processar autenticação:', err);
         }
+      },
+      (err) => {
+        console.error('[AuthContext] Erro no listener:', err);
       }
-    });
+    );
+
+    // Timeout para garantir que não fica preso
+    timeout = setTimeout(() => {
+      if (isMounted) {
+        console.log('[AuthContext] Timeout - assumindo user null');
+        setUser(null);
+      }
+    }, 3000);
 
     return () => {
       isMounted = false;
+      clearTimeout(timeout);
       unsubscribe();
     };
   }, []);
 
   const login = async (email: string, password: string) => {
+    console.log('[AuthContext] Iniciando login com:', email);
     setIsLoading(true);
     setError(null);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      console.log('[AuthContext] Login sucesso:', result.user.email);
+      // isLoading será setado para false quando onAuthStateChanged disparar
     } catch (err) {
       const errorCode = (err as any).code || 'unknown';
       const message = getErrorMessage(errorCode);
+      console.error('[AuthContext] Erro login:', errorCode, message);
       setError(message);
       setIsLoading(false);
       throw new Error(message);
@@ -117,13 +140,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
+    console.log('[AuthContext] Executando logout');
     setIsLoading(true);
     setError(null);
 
     try {
       await signOut(auth);
+      console.log('[AuthContext] Logout sucesso');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao fazer logout';
+      console.error('[AuthContext] Erro logout:', message);
       setError(message);
       setIsLoading(false);
       throw err;
@@ -136,7 +162,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const value: AuthContextType = {
     user,
-    isLoading: isLoading || isInitializing,
+    isLoading,
     isAuthenticated: !!user,
     login,
     signup,
