@@ -1,0 +1,128 @@
+/**
+ * Tipos TypeScript para o Opero
+ * Entidades principais: Company, Client, Product, Order, Invoice
+ */
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  companyId?: string; // Referência à empresa do usuário
+  createdAt: Date;
+}
+
+export interface Company {
+  companyId: string;
+  userId: string; // Proprietário da empresa
+  name: string;
+  cnpj: string; // Único, necessário para notas fiscais
+  phone: string;
+  email: string;
+  address: {
+    street: string;
+    number: string;
+    complement?: string;
+  };
+  city: string;
+  state: string; // UF
+  zipCode: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Client {
+  clientId: string;
+  companyId: string; // A qual empresa pertence
+  name: string;
+  cpfCnpj: string; // Único dentro da empresa
+  phone: string;
+  email?: string;
+  address: {
+    street: string;
+    number: string;
+    complement?: string;
+  };
+  city: string;
+  state: string;
+  zipCode: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type ProductCategory = 'Produto' | 'Serviço';
+
+export interface Product {
+  productId: string;
+  companyId: string;
+  name: string;
+  description?: string;
+  category: ProductCategory;
+  unitPrice: number; // Com 2 decimais
+  unit: string; // 'unidade', 'hora', 'metro', etc
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type OrderStatus = 'rascunho' | 'confirmada' | 'em_andamento' | 'concluida' | 'faturada';
+
+export interface OrderItem {
+  itemId: string;
+  productId: string;
+  productName?: string; // Cache para exibição
+  quantity: number;
+  unitPrice: number;
+  subtotal: number; // quantity * unitPrice
+}
+
+export interface ServiceOrder {
+  orderId: string;
+  companyId: string;
+  orderNumber: string; // Formato: OS-2026-0001
+  clientId: string;
+  clientName?: string; // Cache para exibição
+  status: OrderStatus;
+  issueDate: Date;
+  scheduledDate?: Date;
+  completionDate?: Date;
+  items: OrderItem[];
+  observations?: string;
+  totalValue: number; // Soma de todos os subitens
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type InvoiceStatus = 'rascunho' | 'enviada' | 'paga' | 'atrasada';
+
+export interface Invoice {
+  invoiceId: string;
+  companyId: string;
+  invoiceNumber: string; // Formato: NF-2026-0001
+  orderId: string; // Referência à OS que gerou a NF
+  clientId: string;
+  clientName?: string; // Cache
+  issueDate: Date;
+  dueDate: Date;
+  status: InvoiceStatus;
+  items: OrderItem[]; // Cópia dos itens da OS para auditoria
+  subtotal: number;
+  taxes: number; // Future: ICMS, IPI, ISS
+  discount: number;
+  totalValue: number;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Tipos para errors e responses
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
