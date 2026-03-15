@@ -60,12 +60,9 @@ export const styles = StyleSheet.create({
   },
   
   input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flex: 1,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     fontSize: 16,
     color: '#1F2937',
   },
@@ -81,14 +78,27 @@ export const styles = StyleSheet.create({
   },
   
   inputContainer: {
-    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  
+  inputWithIcon: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
   },
   
   iconContainer: {
-    position: 'absolute',
-    right: 16,
-    top: 38,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   
   errorText: {

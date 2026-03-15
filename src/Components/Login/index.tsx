@@ -112,7 +112,7 @@ export const Login: React.FC = () => {
               ]}
             >
               <TextInput
-                style={styles.input}
+                style={styles.inputWithIcon}
                 placeholder="seu@email.com"
                 placeholderTextColor="#9CA3AF"
                 value={email}
@@ -139,7 +139,7 @@ export const Login: React.FC = () => {
               ]}
             >
               <TextInput
-                style={styles.input}
+                style={styles.inputWithIcon}
                 placeholder="••••••••"
                 placeholderTextColor="#9CA3AF"
                 value={password}
@@ -154,8 +154,9 @@ export const Login: React.FC = () => {
                 style={styles.iconContainer}
                 onPress={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
+                activeOpacity={0.6}
               >
-                <Text style={{ fontSize: 20 }}>
+                <Text style={{ fontSize: 18 }}>
                   {showPassword ? '👁️' : '👁️‍🗨️'}
                 </Text>
               </TouchableOpacity>
