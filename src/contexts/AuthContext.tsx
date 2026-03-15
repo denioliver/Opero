@@ -49,6 +49,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
   // Monitora mudanças de autenticação do Firebase
   useEffect(() => {
@@ -72,17 +73,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         try {
           if (firebaseUser) {
+            // Usuário logado
             setUser({
               id: firebaseUser.uid,
               email: firebaseUser.email || '',
               name: firebaseUser.displayName || 'Usuário',
               company: '',
             });
+            // Se estava em login, marca como completo
+            if (isLoginInProgress) {
+              console.log('[AuthContext] Login concluído, setando isLoading=false');
+              setIsLoading(false);
+              setIsLoginInProgress(false);
+            }
           } else {
+            // Usuário deslogado
             setUser(null);
+            setIsLoading(false);
+            setIsLoginInProgress(false);
           }
         } catch (err) {
           console.error('[AuthContext] Erro ao processar autenticação:', err);
+          setIsLoading(false);
+          setIsLoginInProgress(false);
         }
       },
       (err) => {
@@ -95,6 +108,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (isMounted) {
         console.log('[AuthContext] Timeout - assumindo user null');
         setUser(null);
+        setIsLoading(false);
+        setIsLoginInProgress(false);
       }
     }, 3000);
 
@@ -103,11 +118,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       clearTimeout(timeout);
       unsubscribe();
     };
-  }, []);
+  }, [isLoginInProgress]);
 
   const login = async (email: string, password: string) => {
     console.log('[AuthContext] Iniciando login com:', email);
     setIsLoading(true);
+    setIsLoginInProgress(true);
     setError(null);
 
     try {
@@ -120,6 +136,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('[AuthContext] Erro login:', errorCode, message);
       setError(message);
       setIsLoading(false);
+      setIsLoginInProgress(false);
       throw new Error(message);
     }
   };
@@ -142,16 +159,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     console.log('[AuthContext] Executando logout');
     setIsLoading(true);
+    setIsLoginInProgress(true);
     setError(null);
 
     try {
       await signOut(auth);
       console.log('[AuthContext] Logout sucesso');
+      // isLoading será setado para false quando onAuthStateChanged disparar
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao fazer logout';
       console.error('[AuthContext] Erro logout:', message);
       setError(message);
       setIsLoading(false);
+      setIsLoginInProgress(false);
       throw err;
     }
   };
