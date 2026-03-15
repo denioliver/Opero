@@ -7,14 +7,20 @@ import { Home } from './src/Components/Home';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [forceShowContent, setForceShowContent] = useState(false);
 
+  // Timeout para garantir que sai do loading após 5 segundos
   useEffect(() => {
-    setDebugInfo(`Loading: ${isLoading}, Auth: ${isAuthenticated}`);
-    console.log('AppContent:', { isAuthenticated, isLoading });
-  }, [isAuthenticated, isLoading]);
+    const timer = setTimeout(() => {
+      setForceShowContent(true);
+    }, 5000);
 
-  if (isLoading) {
+    return () => clearTimeout(timer);
+  }, []);
+
+  const shouldShowLoading = isLoading && !forceShowContent;
+
+  if (shouldShowLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFB' }}>
         <ActivityIndicator size="large" color="#2563EB" />

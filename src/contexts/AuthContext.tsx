@@ -50,11 +50,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Monitora mudanças de autenticação do Firebase
   useEffect(() => {
     let isMounted = true;
-    let timeout: NodeJS.Timeout;
 
     console.log('[AuthContext] Inicializando listener...');
 
@@ -92,6 +92,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLoading(false);
             setIsLoginInProgress(false);
           }
+          
+          // Marca que já inicializou na primeira resposta
+          if (!hasInitialized) {
+            console.log('[AuthContext] Primeira resposta recebida');
+            setHasInitialized(true);
+          }
         } catch (err) {
           console.error('[AuthContext] Erro ao processar autenticação:', err);
           setIsLoading(false);
@@ -100,25 +106,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       },
       (err) => {
         console.error('[AuthContext] Erro no listener:', err);
+        if (!hasInitialized) {
+          setHasInitialized(true);
+        }
       }
     );
 
-    // Timeout para garantir que não fica preso
-    timeout = setTimeout(() => {
-      if (isMounted) {
-        console.log('[AuthContext] Timeout - assumindo user null');
-        setUser(null);
-        setIsLoading(false);
-        setIsLoginInProgress(false);
-      }
-    }, 3000);
-
     return () => {
       isMounted = false;
-      clearTimeout(timeout);
       unsubscribe();
     };
-  }, [isLoginInProgress]);
+  }, [isLoginInProgress, hasInitialized]);
 
   const login = async (email: string, password: string) => {
     console.log('[AuthContext] Iniciando login com:', email);
