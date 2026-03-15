@@ -49,10 +49,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Monitora mudanças de autenticação do Firebase
   useEffect(() => {
+    let isMounted = true;
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (!isMounted) return;
+
       try {
         if (firebaseUser) {
           // Usuário está logado
@@ -60,7 +65,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
             name: firebaseUser.displayName || 'Usuário',
-            company: '', // Será preenchido do Firestore futuramente
+            company: '',
           });
         } else {
           // Usuário saiu
@@ -69,62 +74,59 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (err) {
         console.error('Erro ao processar mudança de autenticação:', err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     });
 
-    return unsubscribe;
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // O estado do usuário será atualizado pelo onAuthStateChanged listener
     } catch (err) {
       const errorCode = (err as any).code || 'unknown';
       const message = getErrorMessage(errorCode);
       setError(message);
-      throw new Error(message);
-    } finally {
       setIsLoading(false);
+      throw new Error(message);
     }
   };
 
   const signup = async (email: string, password: string, name: string, company: string) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      // TODO: Salvar dados adicionais (name, company) no Firestore
-      // const userRef = doc(db, 'users', result.user.uid);
-      // await setDoc(userRef, { name, company });
+      await createUserWithEmailAndPassword(auth, email, password);
     } catch (err) {
       const errorCode = (err as any).code || 'unknown';
       const message = getErrorMessage(errorCode);
       setError(message);
-      throw new Error(message);
-    } finally {
       setIsLoading(false);
+      throw new Error(message);
     }
   };
 
   const logout = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       await signOut(auth);
-      setUser(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao fazer logout';
       setError(message);
-      throw err;
-    } finally {
       setIsLoading(false);
+      throw err;
     }
   };
 
@@ -134,7 +136,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const value: AuthContextType = {
     user,
-    isLoading,
+    isLoading: isLoading || isInitializing,
     isAuthenticated: !!user,
     login,
     signup,

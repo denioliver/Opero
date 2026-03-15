@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  StyleSheet,
   Alert,
 } from 'react-native';
-import { styles } from './styles';
 import { validateCredentials } from '../../utils/validation';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -22,21 +22,20 @@ interface LoginFormErrors {
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState<LoginFormErrors>({});
-  const [focusedInput, setFocusedInput] = useState<'email' | 'password' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<LoginFormErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login, isLoading, error: authError, clearError } = useAuth();
 
-  const handleLogin = async () => {
-    // Limpar erros anteriores
+  const handleLogin = useCallback(async () => {
+    if (isSubmitting) return;
+
     clearError();
     setErrors({});
 
-    // Validar credenciais
     const validation = validateCredentials(email, password);
-    
+
     if (!validation.valid) {
       const errorMessage = validation.message;
       if (errorMessage?.includes('Email')) {
@@ -47,30 +46,32 @@ export const Login: React.FC = () => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await login(email, password);
-      // Sucesso! A navegação será feita no App.tsx baseado em isAuthenticated
     } catch (err) {
-      // Erro é tratado pelo contexto e exibido no authError
-      Alert.alert('Erro', 'Email ou senha inválidos');
+      console.error('Erro login:', err);
+      Alert.alert('Erro', 'Falha ao fazer login. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [email, password, login, clearError, isSubmitting]);
 
-  const handleEmailChange = (text: string) => {
+  const handleEmailChange = useCallback((text: string) => {
     setEmail(text);
     if (errors.email) {
-      setErrors({ ...errors, email: undefined });
+      setErrors((prev) => ({ ...prev, email: undefined }));
     }
-  };
+  }, [errors.email]);
 
-  const handlePasswordChange = (text: string) => {
+  const handlePasswordChange = useCallback((text: string) => {
     setPassword(text);
     if (errors.password) {
-      setErrors({ ...errors, password: undefined });
+      setErrors((prev) => ({ ...prev, password: undefined }));
     }
-  };
+  }, [errors.password]);
 
-  const isFormValid = email && password && !isLoading;
+  const isFormValid = email.length > 0 && password.length > 0 && !isSubmitting && !isLoading;
 
   return (
     <KeyboardAvoidingView
@@ -78,8 +79,9 @@ export const Login: React.FC = () => {
       style={styles.container}
     >
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -88,103 +90,67 @@ export const Login: React.FC = () => {
           </View>
           <Text style={styles.title}>Opero</Text>
           <Text style={styles.subtitle}>
-            Gestão inteligente de ordens de serviço para sua empresa
+            Gestão de ordens de serviço
           </Text>
         </View>
 
         {/* Error Alert */}
         {authError && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorMessage}>{authError}</Text>
+          <View style={styles.errorAlert}>
+            <Text style={styles.errorAlertText}>{authError}</Text>
           </View>
         )}
 
         {/* Form */}
         <View style={styles.form}>
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
+          {/* Email */}
+          <View style={styles.formGroup}>
             <Text style={styles.label}>Email</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                focusedInput === 'email' && styles.inputFocused,
-                errors.email && styles.inputError,
-              ]}
-            >
-              <TextInput
-                style={styles.inputWithIcon}
-                placeholder="seu@email.com"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={handleEmailChange}
-                onFocus={() => setFocusedInput('email')}
-                onBlur={() => setFocusedInput(null)}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                editable={!isLoading}
-                maxLength={100}
-              />
-            </View>
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            <TextInput
+              style={[styles.input, errors.email && styles.inputError]}
+              placeholder="seu@email.com"
+              placeholderTextColor="#9CA3AF"
+              value={email}
+              onChangeText={handleEmailChange}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isSubmitting && !isLoading}
+              maxLength={100}
+              pointerEvents={isSubmitting || isLoading ? 'none' : 'auto'}
+            />
+            {errors.email && (
+              <Text style={styles.errorText}>{errors.email}</Text>
+            )}
           </View>
 
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
+          {/* Password */}
+          <View style={styles.formGroup}>
             <Text style={styles.label}>Senha</Text>
-            <View
-              style={[
-                styles.inputContainer,
-                focusedInput === 'password' && styles.inputFocused,
-                errors.password && styles.inputError,
-              ]}
-            >
+            <View style={[styles.passwordInput, errors.password && styles.inputError]}>
               <TextInput
-                style={styles.inputWithIcon}
+                style={styles.passwordField}
                 placeholder="••••••••"
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={handlePasswordChange}
-                onFocus={() => setFocusedInput('password')}
-                onBlur={() => setFocusedInput(null)}
                 secureTextEntry={!showPassword}
-                editable={!isLoading}
+                editable={!isSubmitting && !isLoading}
                 maxLength={50}
+                pointerEvents={isSubmitting || isLoading ? 'none' : 'auto'}
               />
               <TouchableOpacity
-                style={styles.iconContainer}
                 onPress={() => setShowPassword(!showPassword)}
-                disabled={isLoading}
-                activeOpacity={0.6}
+                disabled={isSubmitting || isLoading}
+                style={styles.eyeButton}
               >
-                <Text style={{ fontSize: 18 }}>
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                <Text style={styles.eyeIcon}>
+                  {showPassword ? '👁️' : '🔒'}
                 </Text>
               </TouchableOpacity>
             </View>
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-          </View>
-
-          {/* Remember & Forgot Password */}
-          <View style={styles.rememberContainer}>
-            <TouchableOpacity
-              style={styles.rememberCheck}
-              onPress={() => setRememberMe(!rememberMe)}
-              disabled={isLoading}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  rememberMe && styles.checkboxChecked,
-                ]}
-              >
-                {rememberMe && <Text style={{ color: '#FFF', fontWeight: '700' }}>✓</Text>}
-              </View>
-              <Text style={styles.checkboxText}>Lembrar-me</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity disabled={isLoading}>
-              <Text style={styles.forgotPassword}>Esqueceu a senha?</Text>
-            </TouchableOpacity>
+            {errors.password && (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            )}
           </View>
         </View>
 
@@ -192,30 +158,23 @@ export const Login: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.loginButton,
-            !isFormValid && styles.loginButtonDisabled,
+            (!isFormValid) && styles.loginButtonDisabled,
           ]}
           onPress={handleLogin}
           disabled={!isFormValid}
           activeOpacity={0.8}
         >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
+          {isSubmitting || isLoading ? (
+            <ActivityIndicator color="#FFF" size="small" />
           ) : (
             <Text style={styles.loginButtonText}>Entrar</Text>
           )}
         </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>ou</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Sign Up */}
-        <View style={styles.signupContainer}>
-          <Text style={styles.signupText}>Não tem uma conta?</Text>
-          <TouchableOpacity disabled={isLoading}>
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Não tem uma conta?</Text>
+          <TouchableOpacity disabled>
             <Text style={styles.signupLink}>Criar conta</Text>
           </TouchableOpacity>
         </View>
@@ -223,3 +182,143 @@ export const Login: React.FC = () => {
     </KeyboardAvoidingView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFB',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logo: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  errorAlert: {
+    backgroundColor: '#FEF2F2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  errorAlertText: {
+    fontSize: 13,
+    color: '#DC2626',
+    fontWeight: '500',
+  },
+  form: {
+    marginBottom: 24,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  passwordInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  passwordField: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  eyeButton: {
+    padding: 8,
+  },
+  eyeIcon: {
+    fontSize: 20,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 6,
+    fontWeight: '500',
+  },
+  loginButton: {
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+    opacity: 0.6,
+  },
+  loginButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  signupLink: {
+    fontSize: 14,
+    color: '#2563EB',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+});
