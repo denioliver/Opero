@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,13 +7,13 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-} from 'react-native';
-import { validateCredentials } from '../../utils/validation';
-import { useAuth } from '../../contexts/AuthContext';
+} from "react-native";
+import { validateCredentials } from "../../utils/validation";
+import { useAuth } from "../../contexts/AuthContext";
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const { login, isLoading, error: authError, clearError } = useAuth();
@@ -23,7 +23,7 @@ export const Login: React.FC = () => {
     const validation = validateCredentials(email, password);
 
     if (!validation.valid) {
-      Alert.alert('Erro', validation.message || 'Email ou senha inválidos');
+      Alert.alert("Erro", validation.message || "Email ou senha inválidos");
       return;
     }
 
@@ -80,7 +80,7 @@ export const Login: React.FC = () => {
               onPress={() => setShowPassword(!showPassword)}
               disabled={isLoading}
             >
-              <Text>{showPassword ? '👁️' : '🔒'}</Text>
+              <Text>{showPassword ? "👁️" : "🔒"}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -104,51 +104,51 @@ export const Login: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 40,
   },
   logo: {
     width: 60,
     height: 60,
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
   logoText: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
+    fontWeight: "bold",
+    color: "#FFF",
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   errorBox: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: "#FEF2F2",
     padding: 12,
     borderRadius: 8,
     marginBottom: 20,
     borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
+    borderLeftColor: "#EF4444",
   },
   errorText: {
-    color: '#DC2626',
+    color: "#DC2626",
     fontSize: 13,
   },
   form: {
@@ -156,27 +156,27 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
     borderRadius: 8,
     marginBottom: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   passwordBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     paddingRight: 8,
   },
   passwordInput: {
@@ -189,17 +189,17 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     borderRadius: 8,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   buttonDisabled: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: "#D1D5DB",
   },
   buttonText: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
