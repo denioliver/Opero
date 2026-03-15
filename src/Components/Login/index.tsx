@@ -1,185 +1,103 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  ScrollView,
-  Platform,
-  StyleSheet,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { validateCredentials } from '../../utils/validation';
 import { useAuth } from '../../contexts/AuthContext';
-
-interface LoginFormErrors {
-  email?: string;
-  password?: string;
-}
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<LoginFormErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login, isLoading, error: authError, clearError } = useAuth();
 
-  const handleLogin = useCallback(async () => {
-    if (isSubmitting) return;
-
+  const handleLogin = async () => {
     clearError();
-    setErrors({});
-
     const validation = validateCredentials(email, password);
 
     if (!validation.valid) {
-      const errorMessage = validation.message;
-      if (errorMessage?.includes('Email')) {
-        setErrors({ email: errorMessage });
-      } else if (errorMessage?.includes('Senha')) {
-        setErrors({ password: errorMessage });
-      }
+      Alert.alert('Erro', validation.message || 'Email ou senha inválidos');
       return;
     }
 
-    setIsSubmitting(true);
     try {
       await login(email, password);
     } catch (err) {
-      console.error('Erro login:', err);
-      Alert.alert('Erro', 'Falha ao fazer login. Tente novamente.');
-    } finally {
-      setIsSubmitting(false);
+      console.error(err);
     }
-  }, [email, password, login, clearError, isSubmitting]);
+  };
 
-  const handleEmailChange = useCallback((text: string) => {
-    setEmail(text);
-    if (errors.email) {
-      setErrors((prev) => ({ ...prev, email: undefined }));
-    }
-  }, [errors.email]);
-
-  const handlePasswordChange = useCallback((text: string) => {
-    setPassword(text);
-    if (errors.password) {
-      setErrors((prev) => ({ ...prev, password: undefined }));
-    }
-  }, [errors.password]);
-
-  const isFormValid = email.length > 0 && password.length > 0 && !isSubmitting && !isLoading;
+  const isFormValid = email.length > 0 && password.length > 0 && !isLoading;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-      >
-        {/* Header */}
+    <View style={styles.container}>
+      <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.logo}>
             <Text style={styles.logoText}>O</Text>
           </View>
           <Text style={styles.title}>Opero</Text>
-          <Text style={styles.subtitle}>
-            Gestão de ordens de serviço
-          </Text>
+          <Text style={styles.subtitle}>Gestão de Empresas</Text>
         </View>
 
-        {/* Error Alert */}
         {authError && (
-          <View style={styles.errorAlert}>
-            <Text style={styles.errorAlertText}>{authError}</Text>
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{authError}</Text>
           </View>
         )}
 
-        {/* Form */}
         <View style={styles.form}>
-          {/* Email */}
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              placeholder="seu@email.com"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={handleEmailChange}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isSubmitting && !isLoading}
-              maxLength={100}
-              pointerEvents={isSubmitting || isLoading ? 'none' : 'auto'}
-            />
-            {errors.email && (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            )}
-          </View>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="seu@email.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!isLoading}
+          />
 
-          {/* Password */}
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Senha</Text>
-            <View style={[styles.passwordInput, errors.password && styles.inputError]}>
-              <TextInput
-                style={styles.passwordField}
-                placeholder="••••••••"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={handlePasswordChange}
-                secureTextEntry={!showPassword}
-                editable={!isSubmitting && !isLoading}
-                maxLength={50}
-                pointerEvents={isSubmitting || isLoading ? 'none' : 'auto'}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                disabled={isSubmitting || isLoading}
-                style={styles.eyeButton}
-              >
-                <Text style={styles.eyeIcon}>
-                  {showPassword ? '👁️' : '🔒'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
+          <Text style={styles.label}>Senha</Text>
+          <View style={styles.passwordBox}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="••••••••"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword(!showPassword)}
+              disabled={isLoading}
+            >
+              <Text>{showPassword ? '👁️' : '🔒'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Login Button */}
         <TouchableOpacity
-          style={[
-            styles.loginButton,
-            (!isFormValid) && styles.loginButtonDisabled,
-          ]}
+          style={[styles.button, !isFormValid && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={!isFormValid}
-          activeOpacity={0.8}
         >
-          {isSubmitting || isLoading ? (
-            <ActivityIndicator color="#FFF" size="small" />
+          {isLoading ? (
+            <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.loginButtonText}>Entrar</Text>
+            <Text style={styles.buttonText}>Entrar</Text>
           )}
         </TouchableOpacity>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Não tem uma conta?</Text>
-          <TouchableOpacity disabled>
-            <Text style={styles.signupLink}>Criar conta</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </View>
   );
 };
 
@@ -188,11 +106,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFB',
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
+  content: {
+    flex: 1,
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
@@ -209,39 +126,33 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#FFF',
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
     color: '#6B7280',
-    textAlign: 'center',
   },
-  errorAlert: {
+  errorBox: {
     backgroundColor: '#FEF2F2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 12,
     borderRadius: 8,
     marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
   },
-  errorAlertText: {
-    fontSize: 13,
+  errorText: {
     color: '#DC2626',
-    fontWeight: '500',
+    fontSize: 13,
   },
   form: {
-    marginBottom: 24,
-  },
-  formGroup: {
-    marginBottom: 20,
+    marginBottom: 32,
   },
   label: {
     fontSize: 14,
@@ -251,74 +162,44 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     borderRadius: 8,
+    marginBottom: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  passwordInput: {
+  passwordBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingRight: 8,
   },
-  passwordField: {
+  passwordInput: {
     flex: 1,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
   },
-  eyeButton: {
+  eyeBtn: {
     padding: 8,
   },
-  eyeIcon: {
-    fontSize: 20,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  loginButton: {
+  button: {
     backgroundColor: '#2563EB',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
-    marginBottom: 32,
   },
-  loginButtonDisabled: {
+  buttonDisabled: {
     backgroundColor: '#D1D5DB',
-    opacity: 0.6,
   },
-  loginButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+  buttonText: {
     color: '#FFF',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  signupLink: {
-    fontSize: 14,
-    color: '#2563EB',
-    fontWeight: '600',
-    marginLeft: 4,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
