@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Product } from '../types';
-import { useCompany } from './CompanyContext';
-import { db } from '../config/firebase';
+import React, { createContext, useContext, useState } from "react";
+import { Product } from "../types";
+import { useCompany } from "./CompanyContext";
+import { db } from "../config/firebase";
 import {
   collection,
   query,
@@ -11,20 +11,28 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-} from 'firebase/firestore';
+  serverTimestamp,
+} from "firebase/firestore";
 
 interface ProductsContextType {
   products: Product[];
   isLoadingProducts: boolean;
   productsError: string | null;
   loadProducts: () => Promise<void>;
-  addProduct: (product: Omit<Product, 'productId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
+  addProduct: (
+    product: Omit<Product, "productId" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
+  updateProduct: (
+    productId: string,
+    updates: Partial<Product>,
+  ) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   clearProductsError: () => void;
 }
 
-const ProductsContext = createContext<ProductsContextType | undefined>(undefined);
+const ProductsContext = createContext<ProductsContextType | undefined>(
+  undefined,
+);
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
@@ -40,9 +48,9 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       setProductsError(null);
 
       const q = query(
-        collection(db, 'products'),
-        where('companyId', '==', company.companyId),
-        where('active', '==', true)
+        collection(db, "products"),
+        where("companyId", "==", company.companyId),
+        where("active", "==", true),
       );
 
       const querySnapshot = await getDocs(q);
@@ -57,22 +65,24 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
       setProducts(productsList);
     } catch (error) {
-      console.error('[ProductsContext] Erro ao carregar produtos:', error);
-      setProductsError('Erro ao carregar produtos');
+      console.error("[ProductsContext] Erro ao carregar produtos:", error);
+      setProductsError("Erro ao carregar produtos");
     } finally {
       setIsLoadingProducts(false);
     }
   };
 
-  const addProduct = async (product: Omit<Product, 'productId' | 'createdAt' | 'updatedAt'>) => {
-    if (!company?.companyId) throw new Error('Empresa não encontrada');
+  const addProduct = async (
+    product: Omit<Product, "productId" | "createdAt" | "updatedAt">,
+  ) => {
+    if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     try {
-      const docRef = await addDoc(collection(db, 'products'), {
+      const docRef = await addDoc(collection(db, "products"), {
         ...product,
         companyId: company.companyId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       setProducts((prev) => [
@@ -86,27 +96,30 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         },
       ]);
     } catch (error) {
-      console.error('[ProductsContext] Erro ao adicionar produto:', error);
+      console.error("[ProductsContext] Erro ao adicionar produto:", error);
       throw error;
     }
   };
 
-  const updateProduct = async (productId: string, updates: Partial<Product>) => {
+  const updateProduct = async (
+    productId: string,
+    updates: Partial<Product>,
+  ) => {
     try {
-      await updateDoc(doc(db, 'products', productId), {
+      await updateDoc(doc(db, "products", productId), {
         ...updates,
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
 
       setProducts((prev) =>
         prev.map((p) =>
           p.productId === productId
             ? { ...p, ...updates, updatedAt: new Date() }
-            : p
-        )
+            : p,
+        ),
       );
     } catch (error) {
-      console.error('[ProductsContext] Erro ao atualizar produto:', error);
+      console.error("[ProductsContext] Erro ao atualizar produto:", error);
       throw error;
     }
   };
@@ -114,14 +127,14 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const deleteProduct = async (productId: string) => {
     try {
       // Soft delete: apenas marcar como inativo
-      await updateDoc(doc(db, 'products', productId), {
+      await updateDoc(doc(db, "products", productId), {
         active: false,
         updatedAt: new Date(),
       });
 
       setProducts((prev) => prev.filter((p) => p.productId !== productId));
     } catch (error) {
-      console.error('[ProductsContext] Erro ao deletar produto:', error);
+      console.error("[ProductsContext] Erro ao deletar produto:", error);
       throw error;
     }
   };
@@ -149,7 +162,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 export function useProducts(): ProductsContextType {
   const context = useContext(ProductsContext);
   if (!context) {
-    throw new Error('useProducts deve ser usado dentro de ProductsProvider');
+    throw new Error("useProducts deve ser usado dentro de ProductsProvider");
   }
   return context;
 }

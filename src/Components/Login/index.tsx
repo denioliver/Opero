@@ -86,7 +86,10 @@ export const Login: React.FC = () => {
         </View>
 
         <TouchableOpacity
-          style={[styles.button, !isFormValid && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            !isFormValid ? styles.buttonDisabled : undefined,
+          ]}
           onPress={handleLogin}
           disabled={!isFormValid}
         >

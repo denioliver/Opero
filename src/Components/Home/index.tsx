@@ -10,7 +10,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useCompany } from "../../contexts/CompanyContext";
 import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -29,7 +29,8 @@ declare global {
 export const Home: React.FC = () => {
   const { user, logout, isLoading } = useAuth();
   const { company } = useCompany();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -45,28 +46,32 @@ export const Home: React.FC = () => {
 
   const menuItems = [
     {
-      id: 'clients',
-      icon: '👥',
-      label: 'Clientes',
-      onPress: () => navigation.navigate('ClientsList' as keyof RootStackParamList),
+      id: "clients",
+      icon: "👥",
+      label: "Clientes",
+      onPress: () =>
+        navigation.navigate("ClientsList" as keyof RootStackParamList),
     },
     {
-      id: 'products',
-      icon: '📦',
-      label: 'Produtos',
-      onPress: () => navigation.navigate('ProductsList' as keyof RootStackParamList),
+      id: "products",
+      icon: "📦",
+      label: "Produtos",
+      onPress: () =>
+        navigation.navigate("ProductsList" as keyof RootStackParamList),
     },
     {
-      id: 'orders',
-      icon: '📋',
-      label: 'Ordens de Serviço',
-      onPress: () => navigation.navigate('OrdersList' as keyof RootStackParamList),
+      id: "orders",
+      icon: "📋",
+      label: "Ordens de Serviço",
+      onPress: () =>
+        navigation.navigate("OrdersList" as keyof RootStackParamList),
     },
     {
-      id: 'invoices',
-      icon: '🧾',
-      label: 'Notas Fiscais',
-      onPress: () => navigation.navigate('InvoicesList' as keyof RootStackParamList),
+      id: "invoices",
+      icon: "🧾",
+      label: "Notas Fiscais",
+      onPress: () =>
+        navigation.navigate("InvoicesList" as keyof RootStackParamList),
     },
   ];
 
@@ -89,12 +94,12 @@ export const Home: React.FC = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Opero</Text>
-          <Text style={styles.subtitle}>{company?.name || 'Sua Empresa'}</Text>
+          <Text style={styles.subtitle}>{company?.name || "Sua Empresa"}</Text>
         </View>
         <TouchableOpacity
           style={[
             styles.logoutButtonHeader,
-            (loggingOut || isLoading) && styles.logoutButtonDisabled,
+            loggingOut || isLoading ? styles.logoutButtonDisabled : undefined,
           ]}
           onPress={handleLogout}
           disabled={loggingOut || isLoading}
@@ -120,7 +125,10 @@ export const Home: React.FC = () => {
             <View style={styles.companyInfoContainer}>
               <Text style={styles.infLabel}>Empresa:</Text>
               <Text style={styles.infValue}>{company.name}</Text>
-              <Text style={styles.infValue} style={{ color: '#9CA3AF', marginTop: 4 }}>
+              <Text
+                style={styles.infValue}
+                style={{ color: "#9CA3AF", marginTop: 4 }}
+              >
                 {company.city}, {company.state}
               </Text>
             </View>
@@ -148,30 +156,10 @@ export const Home: React.FC = () => {
         <View style={styles.statsSection}>
           <Text style={styles.menuSectionTitle}>Status</Text>
           <View style={styles.statsGrid}>
-            <StatCard
-              icon="📋"
-              label="Ordens"
-              value="0"
-              color="#06B6D4"
-            />
-            <StatCard
-              icon="👥"
-              label="Clientes"
-              value="0"
-              color="#EC4899"
-            />
-            <StatCard
-              icon="📦"
-              label="Produtos"
-              value="0"
-              color="#F59E0B"
-            />
-            <StatCard
-              icon="🧾"
-              label="NFs"
-              value="0"
-              color="#8B5CF6"
-            />
+            <StatCard icon="📋" label="Ordens" value="0" color="#06B6D4" />
+            <StatCard icon="👥" label="Clientes" value="0" color="#EC4899" />
+            <StatCard icon="📦" label="Produtos" value="0" color="#F59E0B" />
+            <StatCard icon="🧾" label="NFs" value="0" color="#8B5CF6" />
           </View>
         </View>
       </ScrollView>
@@ -179,7 +167,17 @@ export const Home: React.FC = () => {
   );
 };
 
-function StatCard({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  color: string;
+}) {
   return (
     <View style={styles.statCard}>
       <Text style={[styles.statIcon, { color }]}>{icon}</Text>
@@ -201,9 +199,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   title: {
     fontSize: 24,

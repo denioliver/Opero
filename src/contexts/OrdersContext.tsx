@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import { ServiceOrder, OrderStatus } from '../types';
-import { useCompany } from './CompanyContext';
-import { db } from '../config/firebase';
+import React, { createContext, useContext, useState } from "react";
+import { ServiceOrder, OrderStatus } from "../types";
+import { useCompany } from "./CompanyContext";
+import { db } from "../config/firebase";
 import {
   collection,
   query,
@@ -11,15 +11,21 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-} from 'firebase/firestore';
+  serverTimestamp,
+} from "firebase/firestore";
 
 interface OrdersContextType {
   orders: ServiceOrder[];
   isLoadingOrders: boolean;
   ordersError: string | null;
   loadOrders: (status?: OrderStatus) => Promise<void>;
-  addOrder: (order: Omit<ServiceOrder, 'orderId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateOrder: (orderId: string, updates: Partial<ServiceOrder>) => Promise<void>;
+  addOrder: (
+    order: Omit<ServiceOrder, "orderId" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
+  updateOrder: (
+    orderId: string,
+    updates: Partial<ServiceOrder>,
+  ) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   clearOrdersError: () => void;
 }
@@ -42,14 +48,14 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       let q;
       if (status) {
         q = query(
-          collection(db, 'orders'),
-          where('companyId', '==', company.companyId),
-          where('status', '==', status)
+          collection(db, "orders"),
+          where("companyId", "==", company.companyId),
+          where("status", "==", status),
         );
       } else {
         q = query(
-          collection(db, 'orders'),
-          where('companyId', '==', company.companyId)
+          collection(db, "orders"),
+          where("companyId", "==", company.companyId),
         );
       }
 
@@ -65,22 +71,24 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
 
       setOrders(ordersList);
     } catch (error) {
-      console.error('[OrdersContext] Erro ao carregar ordens:', error);
-      setOrdersError('Erro ao carregar ordens de serviço');
+      console.error("[OrdersContext] Erro ao carregar ordens:", error);
+      setOrdersError("Erro ao carregar ordens de serviço");
     } finally {
       setIsLoadingOrders(false);
     }
   };
 
-  const addOrder = async (order: Omit<ServiceOrder, 'orderId' | 'createdAt' | 'updatedAt'>) => {
-    if (!company?.companyId) throw new Error('Empresa não encontrada');
+  const addOrder = async (
+    order: Omit<ServiceOrder, "orderId" | "createdAt" | "updatedAt">,
+  ) => {
+    if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     try {
-      const docRef = await addDoc(collection(db, 'orders'), {
+      const docRef = await addDoc(collection(db, "orders"), {
         ...order,
         companyId: company.companyId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       setOrders((prev) => [
@@ -94,37 +102,40 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         },
       ]);
     } catch (error) {
-      console.error('[OrdersContext] Erro ao adicionar ordem:', error);
+      console.error("[OrdersContext] Erro ao adicionar ordem:", error);
       throw error;
     }
   };
 
-  const updateOrder = async (orderId: string, updates: Partial<ServiceOrder>) => {
+  const updateOrder = async (
+    orderId: string,
+    updates: Partial<ServiceOrder>,
+  ) => {
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
+      await updateDoc(doc(db, "orders", orderId), {
         ...updates,
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
 
       setOrders((prev) =>
         prev.map((o) =>
           o.orderId === orderId
             ? { ...o, ...updates, updatedAt: new Date() }
-            : o
-        )
+            : o,
+        ),
       );
     } catch (error) {
-      console.error('[OrdersContext] Erro ao atualizar ordem:', error);
+      console.error("[OrdersContext] Erro ao atualizar ordem:", error);
       throw error;
     }
   };
 
   const deleteOrder = async (orderId: string) => {
     try {
-      await deleteDoc(doc(db, 'orders', orderId));
+      await deleteDoc(doc(db, "orders", orderId));
       setOrders((prev) => prev.filter((o) => o.orderId !== orderId));
     } catch (error) {
-      console.error('[OrdersContext] Erro ao deletar ordem:', error);
+      console.error("[OrdersContext] Erro ao deletar ordem:", error);
       throw error;
     }
   };
@@ -152,7 +163,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
 export function useOrders(): OrdersContextType {
   const context = useContext(OrdersContext);
   if (!context) {
-    throw new Error('useOrders deve ser usado dentro de OrdersProvider');
+    throw new Error("useOrders deve ser usado dentro de OrdersProvider");
   }
   return context;
 }

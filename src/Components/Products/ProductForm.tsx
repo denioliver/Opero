@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,9 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Picker,
-} from 'react-native';
-import { useProducts } from '../../contexts/ProductsContext';
-import { Product, ProductCategory } from '../../types';
+} from "react-native";
+import { useProducts } from "../../contexts/ProductsContext";
+import { Product, ProductCategory } from "../../types";
 
 interface ProductFormProps {
   product?: Product;
@@ -21,14 +21,18 @@ interface ProductFormProps {
   onCancel?: () => void;
 }
 
-export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) {
+export function ProductForm({
+  product,
+  onSuccess,
+  onCancel,
+}: ProductFormProps) {
   const { addProduct, updateProduct, isLoadingProducts } = useProducts();
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    category: 'Produto' as ProductCategory,
-    unitPrice: '',
-    unit: 'unidade',
+    name: "",
+    description: "",
+    category: "Produto" as ProductCategory,
+    unitPrice: "",
+    unit: "unidade",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -37,7 +41,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     if (product) {
       setFormData({
         name: product.name,
-        description: product.description || '',
+        description: product.description || "",
         category: product.category,
         unitPrice: product.unitPrice.toString(),
         unit: product.unit,
@@ -48,10 +52,12 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
-    if (!formData.unitPrice.trim()) newErrors.unitPrice = 'Preço é obrigatório';
-    if (isNaN(parseFloat(formData.unitPrice))) newErrors.unitPrice = 'Preço deve ser um número';
-    if (parseFloat(formData.unitPrice) <= 0) newErrors.unitPrice = 'Preço deve ser maior que 0';
+    if (!formData.name.trim()) newErrors.name = "Nome é obrigatório";
+    if (!formData.unitPrice.trim()) newErrors.unitPrice = "Preço é obrigatório";
+    if (isNaN(parseFloat(formData.unitPrice)))
+      newErrors.unitPrice = "Preço deve ser um número";
+    if (parseFloat(formData.unitPrice) <= 0)
+      newErrors.unitPrice = "Preço deve ser maior que 0";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -59,7 +65,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert('Validação', 'Preencha todos os campos obrigatórios');
+      Alert.alert("Validação", "Preencha todos os campos obrigatórios");
       return;
     }
 
@@ -75,46 +81,55 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
 
       if (product) {
         await updateProduct(product.productId, productData);
-        Alert.alert('Sucesso', 'Produto atualizado com sucesso!', [
-          { text: 'OK', onPress: onSuccess },
+        Alert.alert("Sucesso", "Produto atualizado com sucesso!", [
+          { text: "OK", onPress: onSuccess },
         ]);
       } else {
         await addProduct(productData);
-        Alert.alert('Sucesso', 'Produto cadastrado com sucesso!', [
-          { text: 'OK', onPress: onSuccess },
+        Alert.alert("Sucesso", "Produto cadastrado com sucesso!", [
+          { text: "OK", onPress: onSuccess },
         ]);
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Erro ao salvar produto';
-      Alert.alert('Erro', msg);
+      const msg =
+        error instanceof Error ? error.message : "Erro ao salvar produto";
+      Alert.alert("Erro", msg);
     }
   };
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-          <Text style={styles.title}>{product ? 'Editar Produto' : 'Novo Produto'}</Text>
+          <Text style={styles.title}>
+            {product ? "Editar Produto" : "Novo Produto"}
+          </Text>
         </View>
 
         <View style={styles.section}>
           <View style={styles.inputGroup}>
             <Label text="Nome do Produto/Serviço *" />
             <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
+              style={[
+                styles.input,
+                errors.name ? styles.inputError : undefined,
+              ]}
               placeholder="Ex: Manutenção de HVAC"
               value={formData.name}
-              onChangeText={(text) => updateField('name', text)}
+              onChangeText={(text) => updateField("name", text)}
               editable={!isLoadingProducts}
             />
             {errors.name && <ErrorText text={errors.name} />}
@@ -126,7 +141,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
               style={[styles.input, styles.textArea]}
               placeholder="Descrição detalhada (opcional)"
               value={formData.description}
-              onChangeText={(text) => updateField('description', text)}
+              onChangeText={(text) => updateField("description", text)}
               editable={!isLoadingProducts}
               multiline
               numberOfLines={4}
@@ -140,8 +155,8 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.category}
-                  onValueChange={(value) => updateField('category', value)}
-                  enabled={!isLoadingProducts}
+                  onValueChange={(value) => updateField("category", value)}
+                  pointerEvents={isLoadingProducts ? "none" : "auto"}
                 >
                   <Picker.Item label="Produto" value="Produto" />
                   <Picker.Item label="Serviço" value="Serviço" />
@@ -154,8 +169,8 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.unit}
-                  onValueChange={(value) => updateField('unit', value)}
-                  enabled={!isLoadingProducts}
+                  onValueChange={(value) => updateField("unit", value)}
+                  pointerEvents={isLoadingProducts ? "none" : "auto"}
                 >
                   <Picker.Item label="Unidade" value="unidade" />
                   <Picker.Item label="Hora" value="hora" />
@@ -173,10 +188,13 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             <View style={styles.priceInputContainer}>
               <Text style={styles.currencySymbol}>R$</Text>
               <TextInput
-                style={[styles.priceInput, errors.unitPrice && styles.inputError]}
+                style={[
+                  styles.priceInput,
+                  errors.unitPrice ? styles.inputError : undefined,
+                ]}
                 placeholder="0,00"
                 value={formData.unitPrice}
-                onChangeText={(text) => updateField('unitPrice', text)}
+                onChangeText={(text) => updateField("unitPrice", text)}
                 editable={!isLoadingProducts}
                 keyboardType="decimal-pad"
               />
@@ -196,7 +214,11 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.submitButton, isLoadingProducts && styles.submitButtonDisabled]}
+            style={[
+              styles.button,
+              styles.submitButton,
+              isLoadingProducts ? styles.submitButtonDisabled : undefined,
+            ]}
             onPress={handleSubmit}
             disabled={isLoadingProducts}
           >
@@ -204,7 +226,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.submitButtonText}>
-                {product ? 'Atualizar' : 'Criar'}
+                {product ? "Atualizar" : "Criar"}
               </Text>
             )}
           </TouchableOpacity>
@@ -227,7 +249,7 @@ function ErrorText({ text }: { text: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -239,8 +261,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: "700",
+    color: "#1F2937",
   },
   section: {
     marginBottom: 24,
@@ -249,94 +271,94 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 16,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#1F2937',
+    color: "#1F2937",
   },
   textArea: {
     height: 100,
     paddingVertical: 12,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: "#EF4444",
   },
   pickerContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   priceInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 12,
   },
   currencySymbol: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
     marginRight: 4,
   },
   priceInput: {
     flex: 1,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#1F2937',
+    color: "#1F2937",
   },
   errorField: {
-    color: '#EF4444',
+    color: "#EF4444",
     fontSize: 12,
     marginTop: 4,
   },
   buttonGroup: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   button: {
     flex: 1,
     borderRadius: 8,
     paddingVertical: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   cancelButton: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
   },
   cancelButtonText: {
-    color: '#1F2937',
+    color: "#1F2937",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   submitButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   spacer: {
     height: 20,

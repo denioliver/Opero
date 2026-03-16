@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Invoice, InvoiceStatus } from '../types';
-import { useCompany } from './CompanyContext';
-import { db } from '../config/firebase';
+import React, { createContext, useContext, useState } from "react";
+import { Invoice, InvoiceStatus } from "../types";
+import { useCompany } from "./CompanyContext";
+import { db } from "../config/firebase";
 import {
   collection,
   query,
@@ -11,20 +11,28 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-} from 'firebase/firestore';
+  serverTimestamp,
+} from "firebase/firestore";
 
 interface InvoicesContextType {
   invoices: Invoice[];
   isLoadingInvoices: boolean;
   invoicesError: string | null;
   loadInvoices: (status?: InvoiceStatus) => Promise<void>;
-  addInvoice: (invoice: Omit<Invoice, 'invoiceId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateInvoice: (invoiceId: string, updates: Partial<Invoice>) => Promise<void>;
+  addInvoice: (
+    invoice: Omit<Invoice, "invoiceId" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
+  updateInvoice: (
+    invoiceId: string,
+    updates: Partial<Invoice>,
+  ) => Promise<void>;
   deleteInvoice: (invoiceId: string) => Promise<void>;
   clearInvoicesError: () => void;
 }
 
-const InvoicesContext = createContext<InvoicesContextType | undefined>(undefined);
+const InvoicesContext = createContext<InvoicesContextType | undefined>(
+  undefined,
+);
 
 export function InvoicesProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
@@ -42,14 +50,14 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
       let q;
       if (status) {
         q = query(
-          collection(db, 'invoices'),
-          where('companyId', '==', company.companyId),
-          where('status', '==', status)
+          collection(db, "invoices"),
+          where("companyId", "==", company.companyId),
+          where("status", "==", status),
         );
       } else {
         q = query(
-          collection(db, 'invoices'),
-          where('companyId', '==', company.companyId)
+          collection(db, "invoices"),
+          where("companyId", "==", company.companyId),
         );
       }
 
@@ -65,22 +73,24 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
 
       setInvoices(invoicesList);
     } catch (error) {
-      console.error('[InvoicesContext] Erro ao carregar notas fiscais:', error);
-      setInvoicesError('Erro ao carregar notas fiscais');
+      console.error("[InvoicesContext] Erro ao carregar notas fiscais:", error);
+      setInvoicesError("Erro ao carregar notas fiscais");
     } finally {
       setIsLoadingInvoices(false);
     }
   };
 
-  const addInvoice = async (invoice: Omit<Invoice, 'invoiceId' | 'createdAt' | 'updatedAt'>) => {
-    if (!company?.companyId) throw new Error('Empresa não encontrada');
+  const addInvoice = async (
+    invoice: Omit<Invoice, "invoiceId" | "createdAt" | "updatedAt">,
+  ) => {
+    if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     try {
-      const docRef = await addDoc(collection(db, 'invoices'), {
+      const docRef = await addDoc(collection(db, "invoices"), {
         ...invoice,
         companyId: company.companyId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       setInvoices((prev) => [
@@ -94,37 +104,40 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
         },
       ]);
     } catch (error) {
-      console.error('[InvoicesContext] Erro ao adicionar nota fiscal:', error);
+      console.error("[InvoicesContext] Erro ao adicionar nota fiscal:", error);
       throw error;
     }
   };
 
-  const updateInvoice = async (invoiceId: string, updates: Partial<Invoice>) => {
+  const updateInvoice = async (
+    invoiceId: string,
+    updates: Partial<Invoice>,
+  ) => {
     try {
-      await updateDoc(doc(db, 'invoices', invoiceId), {
+      await updateDoc(doc(db, "invoices", invoiceId), {
         ...updates,
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
 
       setInvoices((prev) =>
         prev.map((i) =>
           i.invoiceId === invoiceId
             ? { ...i, ...updates, updatedAt: new Date() }
-            : i
-        )
+            : i,
+        ),
       );
     } catch (error) {
-      console.error('[InvoicesContext] Erro ao atualizar nota fiscal:', error);
+      console.error("[InvoicesContext] Erro ao atualizar nota fiscal:", error);
       throw error;
     }
   };
 
   const deleteInvoice = async (invoiceId: string) => {
     try {
-      await deleteDoc(doc(db, 'invoices', invoiceId));
+      await deleteDoc(doc(db, "invoices", invoiceId));
       setInvoices((prev) => prev.filter((i) => i.invoiceId !== invoiceId));
     } catch (error) {
-      console.error('[InvoicesContext] Erro ao deletar nota fiscal:', error);
+      console.error("[InvoicesContext] Erro ao deletar nota fiscal:", error);
       throw error;
     }
   };
@@ -152,7 +165,7 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
 export function useInvoices(): InvoicesContextType {
   const context = useContext(InvoicesContext);
   if (!context) {
-    throw new Error('useInvoices deve ser usado dentro de InvoicesProvider');
+    throw new Error("useInvoices deve ser usado dentro de InvoicesProvider");
   }
   return context;
 }

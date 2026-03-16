@@ -1,14 +1,25 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Company } from '../types';
-import { db } from '../config/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Company } from "../types";
+import { db } from "../config/firebase";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { useAuth } from "./AuthContext";
 
 interface CompanyContextType {
   company: Company | null;
   isLoadingCompany: boolean;
   companyError: string | null;
-  registerCompany: (companyData: Omit<Company, 'companyId' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  registerCompany: (
+    companyData: Omit<
+      Company,
+      "companyId" | "userId" | "createdAt" | "updatedAt"
+    >,
+  ) => Promise<void>;
   updateCompany: (updates: Partial<Company>) => Promise<void>;
   checkCompanyExists: () => Promise<boolean>;
   clearCompanyError: () => void;
@@ -38,7 +49,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         setCompanyError(null);
 
         // Buscar empresa pelo userId
-        const companyDoc = await getDoc(doc(db, 'companies', user.id));
+        const companyDoc = await getDoc(doc(db, "companies", user.id));
 
         if (companyDoc.exists()) {
           const companyData = companyDoc.data() as Company;
@@ -50,8 +61,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           setCompany(null);
         }
       } catch (error) {
-        console.error('[CompanyContext] Erro ao buscar empresa:', error);
-        setCompanyError('Erro ao carregar empresa');
+        console.error("[CompanyContext] Erro ao buscar empresa:", error);
+        setCompanyError("Erro ao carregar empresa");
       } finally {
         setIsLoadingCompany(false);
       }
@@ -64,35 +75,40 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
    * Registra uma nova empresa para o usuário
    */
   const registerCompany = async (
-    companyData: Omit<Company, 'companyId' | 'userId' | 'createdAt' | 'updatedAt'>
+    companyData: Omit<
+      Company,
+      "companyId" | "userId" | "createdAt" | "updatedAt"
+    >,
   ) => {
     if (!user?.id) {
-      throw new Error('Usuário não autenticado');
+      throw new Error("Usuário não autenticado");
     }
 
     try {
       setIsLoadingCompany(true);
       setCompanyError(null);
 
+      const timestamp = new Date();
       const newCompany: Company = {
         ...companyData,
         companyId: user.id,
         userId: user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: timestamp,
+        updatedAt: timestamp,
       };
 
       // Salvar no Firestore com ID = userId (uma empresa por usuário)
-      await setDoc(doc(db, 'companies', user.id), {
+      await setDoc(doc(db, "companies", user.id), {
         ...newCompany,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       setCompany(newCompany);
     } catch (error) {
-      console.error('[CompanyContext] Erro ao registrar empresa:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao registrar empresa';
+      console.error("[CompanyContext] Erro ao registrar empresa:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao registrar empresa";
       setCompanyError(errorMessage);
       throw error;
     } finally {
@@ -105,18 +121,18 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
    */
   const updateCompany = async (updates: Partial<Company>) => {
     if (!user?.id) {
-      throw new Error('Usuário não autenticado');
+      throw new Error("Usuário não autenticado");
     }
 
     try {
       setIsLoadingCompany(true);
       setCompanyError(null);
 
-      const companyRef = doc(db, 'companies', user.id);
+      const companyRef = doc(db, "companies", user.id);
 
       await updateDoc(companyRef, {
         ...updates,
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
 
       // Atualizar state local
@@ -125,13 +141,13 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           ? {
               ...prev,
               ...updates,
-              updatedAt: new Date(),
             }
-          : null
+          : null,
       );
     } catch (error) {
-      console.error('[CompanyContext] Erro ao atualizar empresa:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar empresa';
+      console.error("[CompanyContext] Erro ao atualizar empresa:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao atualizar empresa";
       setCompanyError(errorMessage);
       throw error;
     } finally {
@@ -146,10 +162,10 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     if (!user?.id) return false;
 
     try {
-      const companyDoc = await getDoc(doc(db, 'companies', user.id));
+      const companyDoc = await getDoc(doc(db, "companies", user.id));
       return companyDoc.exists();
     } catch (error) {
-      console.error('[CompanyContext] Erro ao verificar empresa:', error);
+      console.error("[CompanyContext] Erro ao verificar empresa:", error);
       return false;
     }
   };
@@ -168,7 +184,9 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     clearCompanyError,
   };
 
-  return <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>;
+  return (
+    <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>
+  );
 }
 
 /**
@@ -177,7 +195,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 export function useCompany(): CompanyContextType {
   const context = useContext(CompanyContext);
   if (!context) {
-    throw new Error('useCompany deve ser usado dentro de CompanyProvider');
+    throw new Error("useCompany deve ser usado dentro de CompanyProvider");
   }
   return context;
 }

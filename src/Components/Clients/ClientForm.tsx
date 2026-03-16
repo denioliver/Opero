@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { useClients } from '../../contexts/ClientsContext';
-import { Client } from '../../types';
+} from "react-native";
+import { useClients } from "../../contexts/ClientsContext";
+import { Client } from "../../types";
 
 interface ClientFormProps {
   client?: Client;
@@ -23,16 +23,16 @@ interface ClientFormProps {
 export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   const { addClient, updateClient, isLoadingClients } = useClients();
   const [formData, setFormData] = useState({
-    name: '',
-    cpfCnpj: '',
-    phone: '',
-    email: '',
-    street: '',
-    number: '',
-    complement: '',
-    city: '',
-    state: '',
-    zipCode: '',
+    name: "",
+    cpfCnpj: "",
+    phone: "",
+    email: "",
+    street: "",
+    number: "",
+    complement: "",
+    city: "",
+    state: "",
+    zipCode: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -43,10 +43,10 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
         name: client.name,
         cpfCnpj: client.cpfCnpj,
         phone: client.phone,
-        email: client.email || '',
+        email: client.email || "",
         street: client.address.street,
         number: client.address.number,
-        complement: client.address.complement || '',
+        complement: client.address.complement || "",
         city: client.city,
         state: client.state,
         zipCode: client.zipCode,
@@ -57,16 +57,16 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
-    if (!formData.cpfCnpj.trim()) newErrors.cpfCnpj = 'CPF/CNPJ é obrigatório';
-    if (!formData.phone.trim()) newErrors.phone = 'Telefone é obrigatório';
-    if (!formData.street.trim()) newErrors.street = 'Rua é obrigatória';
-    if (!formData.number.trim()) newErrors.number = 'Número é obrigatório';
-    if (!formData.city.trim()) newErrors.city = 'Cidade é obrigatória';
+    if (!formData.name.trim()) newErrors.name = "Nome é obrigatório";
+    if (!formData.cpfCnpj.trim()) newErrors.cpfCnpj = "CPF/CNPJ é obrigatório";
+    if (!formData.phone.trim()) newErrors.phone = "Telefone é obrigatório";
+    if (!formData.street.trim()) newErrors.street = "Rua é obrigatória";
+    if (!formData.number.trim()) newErrors.number = "Número é obrigatório";
+    if (!formData.city.trim()) newErrors.city = "Cidade é obrigatória";
     if (!formData.state.trim() || formData.state.length !== 2) {
-      newErrors.state = 'UF com 2 caracteres';
+      newErrors.state = "UF com 2 caracteres";
     }
-    if (!formData.zipCode.trim()) newErrors.zipCode = 'CEP é obrigatório';
+    if (!formData.zipCode.trim()) newErrors.zipCode = "CEP é obrigatório";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -74,7 +74,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert('Validação', 'Preencha todos os campos obrigatórios');
+      Alert.alert("Validação", "Preencha todos os campos obrigatórios");
       return;
     }
 
@@ -97,36 +97,42 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
 
       if (client) {
         await updateClient(client.clientId, clientData);
-        Alert.alert('Sucesso', 'Cliente atualizado com sucesso!', [
-          { text: 'OK', onPress: onSuccess },
+        Alert.alert("Sucesso", "Cliente atualizado com sucesso!", [
+          { text: "OK", onPress: onSuccess },
         ]);
       } else {
         await addClient(clientData);
-        Alert.alert('Sucesso', 'Cliente cadastrado com sucesso!', [
-          { text: 'OK', onPress: onSuccess },
+        Alert.alert("Sucesso", "Cliente cadastrado com sucesso!", [
+          { text: "OK", onPress: onSuccess },
         ]);
       }
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Erro ao salvar cliente';
-      Alert.alert('Erro', msg);
+      const msg =
+        error instanceof Error ? error.message : "Erro ao salvar cliente";
+      Alert.alert("Erro", msg);
     }
   };
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-          <Text style={styles.title}>{client ? 'Editar Cliente' : 'Novo Cliente'}</Text>
+          <Text style={styles.title}>
+            {client ? "Editar Cliente" : "Novo Cliente"}
+          </Text>
         </View>
 
         {/* Dados Básicos */}
@@ -136,10 +142,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           <View style={styles.inputGroup}>
             <Label text="Nome *" />
             <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
+              style={[
+                styles.input,
+                errors.name ? styles.inputError : undefined,
+              ]}
               placeholder="Nome completo"
               value={formData.name}
-              onChangeText={(text) => updateField('name', text)}
+              onChangeText={(text) => updateField("name", text)}
               editable={!isLoadingClients}
             />
             {errors.name && <ErrorText text={errors.name} />}
@@ -149,10 +158,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
               <Label text="CPF/CNPJ *" />
               <TextInput
-                style={[styles.input, errors.cpfCnpj && styles.inputError]}
+                style={[
+                  styles.input,
+                  errors.cpfCnpj ? styles.inputError : undefined,
+                ]}
                 placeholder="000.000.000-00"
                 value={formData.cpfCnpj}
-                onChangeText={(text) => updateField('cpfCnpj', text)}
+                onChangeText={(text) => updateField("cpfCnpj", text)}
                 editable={!isLoadingClients}
                 keyboardType="numeric"
               />
@@ -162,10 +174,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Label text="Telefone *" />
               <TextInput
-                style={[styles.input, errors.phone && styles.inputError]}
+                style={[
+                  styles.input,
+                  errors.phone ? styles.inputError : undefined,
+                ]}
                 placeholder="(11) 99999-9999"
                 value={formData.phone}
-                onChangeText={(text) => updateField('phone', text)}
+                onChangeText={(text) => updateField("phone", text)}
                 editable={!isLoadingClients}
                 keyboardType="phone-pad"
               />
@@ -179,7 +194,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               style={styles.input}
               placeholder="cliente@email.com"
               value={formData.email}
-              onChangeText={(text) => updateField('email', text)}
+              onChangeText={(text) => updateField("email", text)}
               editable={!isLoadingClients}
               keyboardType="email-address"
             />
@@ -193,10 +208,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           <View style={styles.inputGroup}>
             <Label text="Rua *" />
             <TextInput
-              style={[styles.input, errors.street && styles.inputError]}
+              style={[
+                styles.input,
+                errors.street ? styles.inputError : undefined,
+              ]}
               placeholder="Rua do cliente"
               value={formData.street}
-              onChangeText={(text) => updateField('street', text)}
+              onChangeText={(text) => updateField("street", text)}
               editable={!isLoadingClients}
             />
             {errors.street && <ErrorText text={errors.street} />}
@@ -206,10 +224,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
               <Label text="Número *" />
               <TextInput
-                style={[styles.input, errors.number && styles.inputError]}
+                style={[
+                  styles.input,
+                  errors.number ? styles.inputError : undefined,
+                ]}
                 placeholder="123"
                 value={formData.number}
-                onChangeText={(text) => updateField('number', text)}
+                onChangeText={(text) => updateField("number", text)}
                 editable={!isLoadingClients}
                 keyboardType="numeric"
               />
@@ -222,7 +243,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
                 style={styles.input}
                 placeholder="Apt 101"
                 value={formData.complement}
-                onChangeText={(text) => updateField('complement', text)}
+                onChangeText={(text) => updateField("complement", text)}
                 editable={!isLoadingClients}
               />
             </View>
@@ -232,10 +253,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             <View style={[styles.inputGroup, { flex: 2, marginRight: 8 }]}>
               <Label text="Cidade *" />
               <TextInput
-                style={[styles.input, errors.city && styles.inputError]}
+                style={[
+                  styles.input,
+                  errors.city ? styles.inputError : undefined,
+                ]}
                 placeholder="São Paulo"
                 value={formData.city}
-                onChangeText={(text) => updateField('city', text)}
+                onChangeText={(text) => updateField("city", text)}
                 editable={!isLoadingClients}
               />
               {errors.city && <ErrorText text={errors.city} />}
@@ -244,10 +268,15 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
               <Label text="UF *" />
               <TextInput
-                style={[styles.input, errors.state && styles.inputError]}
+                style={[
+                  styles.input,
+                  errors.state ? styles.inputError : undefined,
+                ]}
                 placeholder="SP"
                 value={formData.state}
-                onChangeText={(text) => updateField('state', text.toUpperCase())}
+                onChangeText={(text) =>
+                  updateField("state", text.toUpperCase())
+                }
                 editable={!isLoadingClients}
                 maxLength={2}
               />
@@ -257,10 +286,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Label text="CEP *" />
               <TextInput
-                style={[styles.input, errors.zipCode && styles.inputError]}
+                style={[
+                  styles.input,
+                  errors.zipCode ? styles.inputError : undefined,
+                ]}
                 placeholder="00000-000"
                 value={formData.zipCode}
-                onChangeText={(text) => updateField('zipCode', text)}
+                onChangeText={(text) => updateField("zipCode", text)}
                 editable={!isLoadingClients}
                 keyboardType="numeric"
               />
@@ -280,7 +312,11 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.button, styles.submitButton, isLoadingClients && styles.submitButtonDisabled]}
+            style={[
+              styles.button,
+              styles.submitButton,
+              isLoadingClients ? styles.submitButtonDisabled : undefined,
+            ]}
             onPress={handleSubmit}
             disabled={isLoadingClients}
           >
@@ -288,7 +324,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.submitButtonText}>
-                {client ? 'Atualizar' : 'Criar'}
+                {client ? "Atualizar" : "Criar"}
               </Text>
             )}
           </TouchableOpacity>
@@ -311,7 +347,7 @@ function ErrorText({ text }: { text: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -323,78 +359,78 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: "700",
+    color: "#1F2937",
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
     marginBottom: 16,
   },
   inputGroup: {
     marginBottom: 16,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 16,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: "600",
+    color: "#374151",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 14,
-    color: '#1F2937',
+    color: "#1F2937",
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: "#EF4444",
   },
   errorField: {
-    color: '#EF4444',
+    color: "#EF4444",
     fontSize: 12,
     marginTop: 4,
   },
   buttonGroup: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   button: {
     flex: 1,
     borderRadius: 8,
     paddingVertical: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   cancelButton: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
   },
   cancelButtonText: {
-    color: '#1F2937',
+    color: "#1F2937",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   submitButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   spacer: {
     height: 20,

@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Client } from '../types';
-import { useCompany } from './CompanyContext';
-import { db } from '../config/firebase';
+import React, { createContext, useContext, useState } from "react";
+import { Client } from "../types";
+import { useCompany } from "./CompanyContext";
+import { db } from "../config/firebase";
 import {
   collection,
   query,
@@ -11,14 +11,17 @@ import {
   updateDoc,
   deleteDoc,
   doc,
-} from 'firebase/firestore';
+  serverTimestamp,
+} from "firebase/firestore";
 
 interface ClientsContextType {
   clients: Client[];
   isLoadingClients: boolean;
   clientsError: string | null;
   loadClients: () => Promise<void>;
-  addClient: (client: Omit<Client, 'clientId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addClient: (
+    client: Omit<Client, "clientId" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
   updateClient: (clientId: string, updates: Partial<Client>) => Promise<void>;
   deleteClient: (clientId: string) => Promise<void>;
   clearClientsError: () => void;
@@ -40,8 +43,8 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
       setClientsError(null);
 
       const q = query(
-        collection(db, 'clients'),
-        where('companyId', '==', company.companyId)
+        collection(db, "clients"),
+        where("companyId", "==", company.companyId),
       );
 
       const querySnapshot = await getDocs(q);
@@ -56,22 +59,24 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
 
       setClients(clientsList);
     } catch (error) {
-      console.error('[ClientsContext] Erro ao carregar clientes:', error);
-      setClientsError('Erro ao carregar clientes');
+      console.error("[ClientsContext] Erro ao carregar clientes:", error);
+      setClientsError("Erro ao carregar clientes");
     } finally {
       setIsLoadingClients(false);
     }
   };
 
-  const addClient = async (client: Omit<Client, 'clientId' | 'createdAt' | 'updatedAt'>) => {
-    if (!company?.companyId) throw new Error('Empresa não encontrada');
+  const addClient = async (
+    client: Omit<Client, "clientId" | "createdAt" | "updatedAt">,
+  ) => {
+    if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     try {
-      const docRef = await addDoc(collection(db, 'clients'), {
+      const docRef = await addDoc(collection(db, "clients"), {
         ...client,
         companyId: company.companyId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       setClients((prev) => [
@@ -85,37 +90,37 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
         },
       ]);
     } catch (error) {
-      console.error('[ClientsContext] Erro ao adicionar cliente:', error);
+      console.error("[ClientsContext] Erro ao adicionar cliente:", error);
       throw error;
     }
   };
 
   const updateClient = async (clientId: string, updates: Partial<Client>) => {
     try {
-      await updateDoc(doc(db, 'clients', clientId), {
+      await updateDoc(doc(db, "clients", clientId), {
         ...updates,
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
 
       setClients((prev) =>
         prev.map((c) =>
           c.clientId === clientId
             ? { ...c, ...updates, updatedAt: new Date() }
-            : c
-        )
+            : c,
+        ),
       );
     } catch (error) {
-      console.error('[ClientsContext] Erro ao atualizar cliente:', error);
+      console.error("[ClientsContext] Erro ao atualizar cliente:", error);
       throw error;
     }
   };
 
   const deleteClient = async (clientId: string) => {
     try {
-      await deleteDoc(doc(db, 'clients', clientId));
+      await deleteDoc(doc(db, "clients", clientId));
       setClients((prev) => prev.filter((c) => c.clientId !== clientId));
     } catch (error) {
-      console.error('[ClientsContext] Erro ao deletar cliente:', error);
+      console.error("[ClientsContext] Erro ao deletar cliente:", error);
       throw error;
     }
   };
@@ -143,7 +148,7 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
 export function useClients(): ClientsContextType {
   const context = useContext(ClientsContext);
   if (!context) {
-    throw new Error('useClients deve ser usado dentro de ClientsProvider');
+    throw new Error("useClients deve ser usado dentro de ClientsProvider");
   }
   return context;
 }
