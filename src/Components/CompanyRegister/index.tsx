@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,11 @@ import {
 import { useCompany } from "../../contexts/CompanyContext";
 import { Company } from "../../types";
 import { useNavigation } from "@react-navigation/native";
-import { fetchCNPJData, validateCNPJFormat } from "../../utils/cnpjValidation";
+import {
+  fetchCNPJData,
+  validateCNPJFormat,
+  validateCorporateEmail,
+} from "../../utils/cnpjValidation";
 import {
   formatCNPJ,
   formatPhone,
@@ -24,8 +28,13 @@ import {
 
 export function CompanyRegister() {
   const navigation = useNavigation<any>();
-  const { registerCompany, isLoadingCompany, companyError, clearCompanyError } =
-    useCompany();
+  const {
+    registerCompany,
+    isLoadingCompany,
+    companyError,
+    clearCompanyError,
+    checkCompanyExists,
+  } = useCompany();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -42,6 +51,30 @@ export function CompanyRegister() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isFetchingCNPJ, setIsFetchingCNPJ] = useState(false);
+
+  // Verifica se usuário já tem empresa
+  useEffect(() => {
+    const checkExistingCompany = async () => {
+      const hasCompany = await checkCompanyExists();
+      if (hasCompany) {
+        Alert.alert(
+          "Empresa já criada",
+          "Você já possui uma empresa cadastrada no Opero. Para criar outra empresa, entre em contato com o suporte.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Voltar para a tela anterior ou home
+                navigation.goBack();
+              },
+            },
+          ],
+        );
+      }
+    };
+
+    checkExistingCompany();
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -138,6 +171,18 @@ export function CompanyRegister() {
   const performRegister = async () => {
     try {
       clearCompanyError();
+      console.log("[CompanyRegister] Iniciando registro de empresa...");
+
+      const address: any = {
+        street: formData.street.trim(),
+        number: formData.number.trim(),
+      };
+
+      // Adicionar complement apenas se tiver valor
+      if (formData.complement.trim()) {
+        address.complement = formData.complement.trim();
+      }
+
       const companyData: Omit<
         Company,
         "companyId" | "userId" | "createdAt" | "updatedAt"
@@ -146,26 +191,28 @@ export function CompanyRegister() {
         cnpj: cleanFormat(formData.cnpj),
         phone: cleanFormat(formData.phone),
         email: formData.email.trim(),
-        address: {
-          street: formData.street.trim(),
-          number: formData.number.trim(),
-          complement: formData.complement.trim() || undefined,
-        },
+        address,
         city: formData.city.trim(),
         state: formData.state.trim().toUpperCase(),
         zipCode: cleanFormat(formData.zipCode),
       };
 
+      console.log("[CompanyRegister] Dados da empresa:", companyData);
+
       await registerCompany(companyData);
+      console.log("[CompanyRegister] Empresa registrada com sucesso!");
+
       Alert.alert("Sucesso", "Empresa cadastrada com sucesso!", [
         {
           text: "OK",
           onPress: () => {
+            console.log("[CompanyRegister] Usuário confirmou sucesso");
             // Navegação automática via CompanyContext update
           },
         },
       ]);
     } catch (error) {
+      console.error("[CompanyRegister] Erro ao registrar:", error);
       const errorMsg =
         error instanceof Error ? error.message : "Erro ao cadastrar empresa";
       Alert.alert("Erro", errorMsg);

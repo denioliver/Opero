@@ -12,7 +12,8 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from "firebase/auth";
-import { auth } from "../config/firebase";
+import { auth, db } from "../config/firebase";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 
 interface User {
   id: string;
@@ -74,7 +75,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser: FirebaseUser | null) => {
+      async (firebaseUser: FirebaseUser | null) => {
         if (!isMounted) {
           console.log("[AuthContext] Component desmontado, ignorando");
           return;
@@ -87,6 +88,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
         try {
           if (firebaseUser) {
+            // Verificar se documento do usuário existe, se não criar
+            const userDocRef = doc(db, "usuarios", firebaseUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+
+            if (!userDocSnap.exists()) {
+              // Criar documento do usuário se não existir
+              await setDoc(userDocRef, {
+                id: firebaseUser.uid,
+                email: firebaseUser.email || "",
+                name: firebaseUser.displayName || "Usuário",
+                createdAt: serverTimestamp(),
+                // empresaId será adicionado quando criar empresa
+              });
+              console.log("[AuthContext] Documento de usuário criado");
+            }
+
             // Usuário logado
             setUser({
               id: firebaseUser.uid,
@@ -165,7 +182,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setError(null);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const result = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+
+      // Criar documento do usuário no Firestore
+      const userDocRef = doc(db, "usuarios", result.user.uid);
+      await setDoc(userDocRef, {
+        id: result.user.uid,
+        email: email,
+        name: name || "Usuário",
+        createdAt: serverTimestamp(),
+        // empresaId será adicionado quando criar empresa
+      });
+
+      console.log("[AuthContext] Usuário registrado com sucesso");
     } catch (err) {
       const errorCode = (err as any).code || "unknown";
       const message = getErrorMessage(errorCode);
