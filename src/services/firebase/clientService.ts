@@ -12,10 +12,8 @@ import {
   updateDoc,
   query,
   where,
-  orderBy,
   serverTimestamp,
   Timestamp,
-  QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Cliente } from '../../domains/clientes/types';
@@ -76,22 +74,48 @@ export async function getClients(
     console.log('[clientService] Buscando clientes da empresa:', empresaId);
 
     const clientesRef = collection(db, 'empresas', empresaId, 'clientes');
-    const constraints: QueryConstraint[] = [];
-
-    // Sempre exclui clientes inativo por padrão se não filtrar por status
-    if (!statusFilter) {
-      constraints.push(where('status', '!=', 'inativo'));
-    } else {
-      constraints.push(where('status', '==', statusFilter));
-    }
-
-    constraints.push(orderBy(sortBy, 'asc'));
-    const q = query(clientesRef, ...constraints);
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(clientesRef);
 
     console.log('[clientService] Clientes encontrados:', snapshot.size);
 
-    return snapshot.docs.map((doc) => doc.data() as Cliente);
+    let clientes = snapshot.docs.map((item) => item.data() as Cliente);
+
+    // Sempre exclui clientes inativos por padrão se não houver filtro explícito
+    if (!statusFilter) {
+      clientes = clientes.filter((cliente) => cliente.status !== 'inativo');
+    } else {
+      clientes = clientes.filter((cliente) => cliente.status === statusFilter);
+    }
+
+    const getCreatedAtMs = (cliente: Cliente): number => {
+      const createdAt: any = cliente.createdAt;
+      if (!createdAt) return 0;
+
+      if (typeof createdAt?.toMillis === 'function') {
+        return createdAt.toMillis();
+      }
+
+      if (createdAt instanceof Date) {
+        return createdAt.getTime();
+      }
+
+      if (typeof createdAt?.seconds === 'number') {
+        return createdAt.seconds * 1000;
+      }
+
+      const parsed = new Date(createdAt as any).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    clientes.sort((first, second) => {
+      if (sortBy === 'nome') {
+        return (first.nome || '').localeCompare(second.nome || '', 'pt-BR');
+      }
+
+      return getCreatedAtMs(first) - getCreatedAtMs(second);
+    });
+
+    return clientes;
   } catch (error) {
     console.error('[clientService] Erro ao buscar clientes:', error);
     throw error;
@@ -193,24 +217,22 @@ export async function checkDocumentExists(
 ): Promise<boolean> {
   try {
     const clientesRef = collection(db, 'empresas', empresaId, 'clientes');
-    const q = query(
-      clientesRef,
-      where('documento', '==', documento),
-      where('status', '!=', 'inativo')
-    );
+    const q = query(clientesRef, where('documento', '==', documento));
 
     const snapshot = await getDocs(q);
 
-    if (snapshot.empty) {
+    const ativos = snapshot.docs.filter((item) => item.data().status !== 'inativo');
+
+    if (ativos.length === 0) {
       return false;
     }
 
     // Se está fazendo update, verifica se é o mesmo cliente
-    if (excludeClienteId && snapshot.docs.length === 1) {
-      return snapshot.docs[0].id !== excludeClienteId;
+    if (excludeClienteId && ativos.length === 1) {
+      return ativos[0].id !== excludeClienteId;
     }
 
-    return snapshot.size > 0;
+    return ativos.length > 0;
   } catch (error) {
     console.error('[clientService] Erro ao verificar documento:', error);
     return false;
