@@ -37,7 +37,7 @@ export async function criarUsuarioGlobal(
       email,
       name,
       role,
-      empresaId: empresaId || undefined,
+      ...(empresaId && { empresaId }), // Apenas incluir empresaId se for definido
       createdAt: new Date(),
       updatedAt: new Date(),
       ativo: true,

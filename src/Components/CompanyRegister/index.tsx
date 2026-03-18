@@ -21,16 +21,21 @@ import {
   validateCorporateEmail,
 } from "../../utils/cnpjValidation";
 import {
+  formatCPF,
   formatCNPJ,
   formatPhone,
   formatZipCode,
   cleanFormat,
 } from "../../utils/formatting";
+import {
+  validateCPFWithName,
+  validateCNPJWithName,
+} from "../../utils/validation";
 import { criarUsuarioGlobal } from "../../services/firebase/usuarioService";
 
 export function CompanyRegister() {
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { user, resetarNecessarioCriarPerfil } = useAuth();
   const {
     registerCompany,
     isLoadingCompany,
@@ -40,6 +45,8 @@ export function CompanyRegister() {
   } = useCompany();
 
   const [formData, setFormData] = useState({
+    ownerName: "",
+    ownerDocument: "",
     name: "",
     cnpj: "",
     phone: "",
@@ -54,11 +61,17 @@ export function CompanyRegister() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isFetchingCNPJ, setIsFetchingCNPJ] = useState(false);
+  const [isValidatingCPF, setIsValidatingCPF] = useState(false);
+  const [isValidatingCNPJ, setIsValidatingCNPJ] = useState(false);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) newErrors.name = "Nome da empresa é obrigatório";
+    if (!formData.ownerName.trim())
+      newErrors.ownerName = "Nome do proprietário é obrigatório";
+    if (!formData.ownerDocument.trim())
+      newErrors.ownerDocument = "CPF do proprietário é obrigatório";
+    if (!formData.name.trim()) newErrors.name = "Razão social é obrigatória";
     if (!formData.cnpj.trim()) newErrors.cnpj = "CNPJ é obrigatório";
     if (!formData.phone.trim()) newErrors.phone = "Telefone é obrigatório";
     if (!formData.email.trim()) newErrors.email = "E-mail é obrigatório";
@@ -106,6 +119,12 @@ export function CompanyRegister() {
           : prev.zipCode,
       }));
 
+      // Validar CPF e CNPJ após carregar dados
+      setTimeout(() => {
+        handleValidateCPF();
+        handleValidateCNPJ();
+      }, 100);
+
       Alert.alert("Sucesso", "Dados do CNPJ carregados com sucesso!");
     } catch (error) {
       const message =
@@ -116,11 +135,76 @@ export function CompanyRegister() {
     }
   };
 
+  const handleValidateCPF = async () => {
+    if (!formData.ownerDocument.trim() || !formData.ownerName.trim()) {
+      return;
+    }
+
+    setIsValidatingCPF(true);
+    try {
+      const result = await validateCPFWithName(
+        formData.ownerDocument,
+        formData.ownerName,
+      );
+
+      if (!result.valid) {
+        setErrors((prev) => ({
+          ...prev,
+          ownerDocument: result.message || "CPF inválido",
+        }));
+      } else {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.ownerDocument;
+          return newErrors;
+        });
+      }
+    } finally {
+      setIsValidatingCPF(false);
+    }
+  };
+
+  const handleValidateCNPJ = async () => {
+    if (!formData.cnpj.trim() || !formData.name.trim()) {
+      return;
+    }
+
+    setIsValidatingCNPJ(true);
+    try {
+      const cleanCNPJ = formData.cnpj.replace(/\D/g, "");
+      const result = await validateCNPJWithName(cleanCNPJ, formData.name);
+
+      if (!result.valid) {
+        setErrors((prev) => ({
+          ...prev,
+          cnpj: result.message || "CNPJ inválido",
+        }));
+      } else {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.cnpj;
+          return newErrors;
+        });
+      }
+    } finally {
+      setIsValidatingCNPJ(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       Alert.alert(
         "Validação",
         "Por favor, preencha todos os campos obrigatórios",
+      );
+      return;
+    }
+
+    // Verificar se há erros de validação de CPF ou CNPJ
+    if (errors.ownerDocument || errors.cnpj) {
+      Alert.alert(
+        "Validação",
+        "Por favor, corrija os erros de CPF ou CNPJ antes de continuar",
       );
       return;
     }
@@ -182,6 +266,9 @@ export function CompanyRegister() {
         cnpj: cleanFormat(formData.cnpj),
         phone: cleanFormat(formData.phone),
         email: formData.email.trim(),
+        ownerName: formData.ownerName.trim(),
+        ownerEmail: user?.email || "",
+        ownerDocument: cleanFormat(formData.ownerDocument),
         address,
         city: formData.city.trim(),
         state: formData.state.trim().toUpperCase(),
@@ -193,15 +280,10 @@ export function CompanyRegister() {
       await registerCompany(companyData);
       console.log("[CompanyRegister] Empresa registrada com sucesso!");
 
-      Alert.alert("Sucesso", "Empresa cadastrada com sucesso!", [
-        {
-          text: "OK",
-          onPress: () => {
-            console.log("[CompanyRegister] Usuário confirmou sucesso");
-            // Navegação automática via CompanyContext update
-          },
-        },
-      ]);
+      // Resetar flag de criação de perfil para navegar automaticamente para dashboard
+      console.log("[CompanyRegister] Resetando necessarioCriarPerfil...");
+      resetarNecessarioCriarPerfil();
+      console.log("[CompanyRegister] Navegando automaticamente para dashboard");
     } catch (error) {
       console.error("[CompanyRegister] Erro ao registrar:", error);
       const errorMsg =
@@ -216,6 +298,8 @@ export function CompanyRegister() {
 
     if (field === "cnpj") {
       formattedValue = formatCNPJ(value);
+    } else if (field === "ownerDocument") {
+      formattedValue = formatCPF(value);
     } else if (field === "phone") {
       formattedValue = formatPhone(value);
     } else if (field === "zipCode") {
@@ -258,12 +342,57 @@ export function CompanyRegister() {
           </View>
         )}
 
+        {/* Dados do Proprietário */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Dados do Proprietário</Text>
+
+          <View style={styles.inputGroup}>
+            <Label text="Nome do Proprietário *" />
+            <TextInput
+              style={[
+                styles.input,
+                errors.ownerName ? styles.inputError : undefined,
+              ]}
+              placeholder="Ex: João Silva"
+              value={formData.ownerName}
+              onChangeText={(text) => updateField("ownerName", text)}
+              editable={!isLoadingCompany}
+            />
+            {errors.ownerName && <ErrorText text={errors.ownerName} />}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Label text="CPF do Proprietário *" />
+            <View style={{ position: "relative" }}>
+              <TextInput
+                style={[
+                  styles.input,
+                  errors.ownerDocument ? styles.inputError : undefined,
+                ]}
+                placeholder="000.000.000-00"
+                value={formData.ownerDocument}
+                onChangeText={(text) => updateField("ownerDocument", text)}
+                onBlur={handleValidateCPF}
+                editable={!isLoadingCompany && !isValidatingCPF}
+                keyboardType="numeric"
+                maxLength={14}
+              />
+              {isValidatingCPF && (
+                <View style={{ position: "absolute", right: 12, top: 12 }}>
+                  <ActivityIndicator size="small" color="#2563EB" />
+                </View>
+              )}
+            </View>
+            {errors.ownerDocument && <ErrorText text={errors.ownerDocument} />}
+          </View>
+        </View>
+
         {/* Dados Básicos */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Dados da Empresa</Text>
 
           <View style={styles.inputGroup}>
-            <Label text="Nome da Empresa *" />
+            <Label text="Razão Social *" />
             <TextInput
               style={[
                 styles.input,
@@ -272,6 +401,7 @@ export function CompanyRegister() {
               placeholder="Ex: Seus Serviços LTDA"
               value={formData.name}
               onChangeText={(text) => updateField("name", text)}
+              onBlur={handleValidateCNPJ}
               editable={!isLoadingCompany}
             />
             {errors.name && <ErrorText text={errors.name} />}
@@ -289,10 +419,12 @@ export function CompanyRegister() {
                 value={formData.cnpj}
                 onChangeText={(text) => updateField("cnpj", text)}
                 onBlur={() => handleFetchCNPJData(formData.cnpj)}
-                editable={!isLoadingCompany && !isFetchingCNPJ}
+                editable={
+                  !isLoadingCompany && !isFetchingCNPJ && !isValidatingCNPJ
+                }
                 keyboardType="numeric"
               />
-              {isFetchingCNPJ && (
+              {(isFetchingCNPJ || isValidatingCNPJ) && (
                 <View style={{ position: "absolute", right: 12, top: 12 }}>
                   <ActivityIndicator size="small" color="#2563EB" />
                 </View>

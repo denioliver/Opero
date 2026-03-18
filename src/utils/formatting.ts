@@ -1,4 +1,15 @@
 /**
+ * Formata CPF: 000.000.000-00
+ */
+export function formatCPF(value: string): string {
+  const clean = value.replace(/\D/g, '');
+  if (clean.length <= 3) return clean;
+  if (clean.length <= 6) return `${clean.slice(0, 3)}.${clean.slice(3)}`;
+  if (clean.length <= 9) return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6)}`;
+  return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6, 9)}-${clean.slice(9, 11)}`;
+}
+
+/**
  * Formata CNPJ: 00.000.000/0000-00
  */
 export function formatCNPJ(value: string): string {

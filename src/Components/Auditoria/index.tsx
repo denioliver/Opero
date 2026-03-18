@@ -16,23 +16,60 @@ import {
   ScrollView,
   TextInput,
 } from "react-native";
+import { useRoute } from "@react-navigation/native";
 import { useCompany } from "../../contexts/CompanyContext";
 import { listarAuditoria } from "../../services/firebase/auditoriaService";
 import { AuditoriaLog } from "../../domains/auth/types";
 
+type AuditoriaRouteParams = {
+  statusKey?: "ordens" | "clientes" | "produtos" | "nfs";
+  statusLabel?: string;
+};
+
 export const AuditoriaScreen: React.FC = () => {
   const { company } = useCompany();
+  const route = useRoute<any>();
+  const params = (route.params || {}) as AuditoriaRouteParams;
+  const statusKey = params.statusKey;
+  const statusLabel = params.statusLabel;
   const [auditorias, setAuditorias] = useState<AuditoriaLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<AuditoriaLog | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterAcao, setFilterAcao] = useState("");
 
+  const matchesStatusFilter = (
+    log: AuditoriaLog,
+    key: "ordens" | "clientes" | "produtos" | "nfs",
+  ) => {
+    const acao = (log.acao || "").toLowerCase();
+    const colecao = (log.colecao || "").toLowerCase();
+
+    if (key === "ordens") {
+      return colecao.includes("ord") || acao.includes("ord");
+    }
+
+    if (key === "clientes") {
+      return colecao.includes("cliente") || acao.includes("cliente");
+    }
+
+    if (key === "produtos") {
+      return colecao.includes("produto") || acao.includes("produto");
+    }
+
+    return (
+      colecao.includes("nota") ||
+      colecao.includes("fiscal") ||
+      acao.includes("nota") ||
+      acao.includes("fiscal")
+    );
+  };
+
   useEffect(() => {
     if (company) {
       carregarAuditoria();
     }
-  }, [company]);
+  }, [company, statusKey, filterAcao]);
 
   const carregarAuditoria = async () => {
     if (!company) return;
@@ -41,7 +78,14 @@ export const AuditoriaScreen: React.FC = () => {
       const logs = await listarAuditoria(company.companyId, {
         acao: filterAcao || undefined,
       });
-      setAuditorias(logs);
+
+      if (statusKey) {
+        setAuditorias(
+          logs.filter((log) => matchesStatusFilter(log, statusKey)),
+        );
+      } else {
+        setAuditorias(logs);
+      }
     } catch (error) {
       Alert.alert("Erro", "Não foi possível carregar auditoria");
       console.error("[AuditoriaScreen] Erro:", error);
@@ -121,7 +165,11 @@ export const AuditoriaScreen: React.FC = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>📊 Histórico de Ações</Text>
-          <Text style={styles.subtitle}>Auditoria da empresa</Text>
+          <Text style={styles.subtitle}>
+            {statusLabel
+              ? `Histórico de ${statusLabel}`
+              : "Auditoria da empresa"}
+          </Text>
         </View>
       </View>
 

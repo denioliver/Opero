@@ -230,7 +230,22 @@ export const AdminDashboard: React.FC = () => {
           {/* Dados */}
           <View style={styles.cardContent}>
             <View style={styles.dataRow}>
-              <Text style={styles.label}>Email:</Text>
+              <Text style={styles.label}>Proprietário:</Text>
+              <Text style={styles.value}>{empresa.ownerName}</Text>
+            </View>
+
+            <View style={styles.dataRow}>
+              <Text style={styles.label}>CPF do Proprietário:</Text>
+              <Text style={styles.value}>{empresa.ownerDocument}</Text>
+            </View>
+
+            <View style={styles.dataRow}>
+              <Text style={styles.label}>Email de Acesso:</Text>
+              <Text style={styles.value}>{empresa.ownerEmail}</Text>
+            </View>
+
+            <View style={styles.dataRow}>
+              <Text style={styles.label}>Email da Empresa (CNPJ):</Text>
               <Text style={styles.value}>{empresa.email}</Text>
             </View>
 
@@ -240,24 +255,18 @@ export const AdminDashboard: React.FC = () => {
             </View>
 
             <View style={styles.dataRow}>
-              <Text style={styles.label}>Proprietário:</Text>
-              <Text style={styles.value}>{empresa.proprietario.name}</Text>
-            </View>
-
-            <View style={styles.dataRow}>
-              <Text style={styles.label}>Email Proprietário:</Text>
-              <Text style={styles.value}>{empresa.proprietario.email}</Text>
-            </View>
-
-            <View style={styles.dataRow}>
-              <Text style={styles.label}>City:</Text>
+              <Text style={styles.label}>Cidade:</Text>
               <Text style={styles.value}>{empresa.city}</Text>
             </View>
 
             <View style={styles.dataRow}>
-              <Text style={styles.label}>Data Criação:</Text>
+              <Text style={styles.label}>Data de Criação:</Text>
               <Text style={styles.value}>
-                {new Date(empresa.createdAt).toLocaleDateString("pt-BR")}
+                {empresa.createdAt?.toDate
+                  ? new Date(empresa.createdAt.toDate()).toLocaleDateString(
+                      "pt-BR",
+                    )
+                  : new Date(empresa.createdAt).toLocaleDateString("pt-BR")}
               </Text>
             </View>
           </View>

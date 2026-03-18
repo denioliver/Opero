@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { useCompany } from "../../contexts/CompanyContext";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -19,7 +20,12 @@ type RootStackParamList = {
   OrdersList: undefined;
   InvoicesList: undefined;
   Acessos: undefined;
-  Auditoria: undefined;
+  Auditoria:
+    | {
+        statusKey?: "ordens" | "clientes" | "produtos" | "nfs";
+        statusLabel?: string;
+      }
+    | undefined;
 };
 
 declare global {
@@ -29,16 +35,41 @@ declare global {
 }
 
 export const Home: React.FC = () => {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading: authLoading } = useAuth();
+  const {
+    funcionario,
+    logoutFuncionario,
+    isLoading: funcionarioLoading,
+  } = useFuncionario();
   const { company } = useCompany();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [loggingOut, setLoggingOut] = useState(false);
+  const isLoading = authLoading || funcionarioLoading;
+  const ownerDisplayName =
+    funcionario?.funcionarioNome ||
+    company?.ownerName ||
+    user?.name ||
+    "Proprietário";
+
+  const handleStatusPress = (
+    statusKey: "ordens" | "clientes" | "produtos" | "nfs",
+    statusLabel: string,
+  ) => {
+    navigation.navigate("Auditoria", {
+      statusKey,
+      statusLabel,
+    });
+  };
 
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await logout();
+      if (user) {
+        await logout();
+      } else {
+        logoutFuncionario();
+      }
       // Navegação acontece automaticamente no App.tsx
     } catch (err) {
       console.error("Erro ao fazer logout:", err);
@@ -93,6 +124,13 @@ export const Home: React.FC = () => {
     },
   ];
 
+  const statusItems = [
+    { id: "ordens", label: "Ordens", value: "0" },
+    { id: "clientes", label: "Clientes", value: "0" },
+    { id: "produtos", label: "Produtos", value: "0" },
+    { id: "nfs", label: "NFs", value: "0" },
+  ];
+
   if (isLoading) {
     return (
       <View
@@ -112,7 +150,6 @@ export const Home: React.FC = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Opero</Text>
-          <Text style={styles.subtitle}>{company?.name || "Sua Empresa"}</Text>
         </View>
         <TouchableOpacity
           style={[
@@ -138,7 +175,8 @@ export const Home: React.FC = () => {
         {/* Welcome Card */}
         <View style={styles.welcomeCard}>
           <Text style={styles.welcomeText}>Bem-vindo! 👋</Text>
-          <Text style={styles.userName}>{user?.email}</Text>
+          <Text style={styles.userName}>{ownerDisplayName}</Text>
+          <Text style={styles.userEmail}>{user?.email}</Text>
           {company && (
             <View style={styles.companyInfoContainer}>
               <Text style={styles.infLabel}>Empresa:</Text>
@@ -151,6 +189,28 @@ export const Home: React.FC = () => {
               </Text>
             </View>
           )}
+        </View>
+
+        {/* Status Discreto */}
+        <View style={styles.statusInlineSection}>
+          <Text style={styles.statusInlineTitle}>Status</Text>
+          <View style={styles.statusInlineRow}>
+            {statusItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.statusInlineItem}
+                onPress={() =>
+                  handleStatusPress(
+                    item.id as "ordens" | "clientes" | "produtos" | "nfs",
+                    item.label,
+                  )
+                }
+              >
+                <Text style={styles.statusInlineValue}>{item.value}</Text>
+                <Text style={styles.statusInlineLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Menu Grid */}
@@ -186,41 +246,10 @@ export const Home: React.FC = () => {
             ))}
           </View>
         </View>
-
-        {/* Quick Stats */}
-        <View style={styles.statsSection}>
-          <Text style={styles.menuSectionTitle}>Status</Text>
-          <View style={styles.statsGrid}>
-            <StatCard icon="📋" label="Ordens" value="0" color="#06B6D4" />
-            <StatCard icon="👥" label="Clientes" value="0" color="#EC4899" />
-            <StatCard icon="📦" label="Produtos" value="0" color="#F59E0B" />
-            <StatCard icon="🧾" label="NFs" value="0" color="#8B5CF6" />
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
 };
-
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={[styles.statIcon, { color }]}>{icon}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: {
@@ -232,8 +261,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 34,
+    paddingBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
@@ -243,10 +272,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "#6B7280",
   },
   logoutButtonHeader: {
     backgroundColor: "#FEE2E2",
@@ -264,14 +289,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 12,
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingBottom: 40,
   },
   welcomeCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
+    padding: 16,
+    marginBottom: 18,
     borderLeftWidth: 4,
     borderLeftColor: "#2563EB",
     shadowColor: "#000",
@@ -286,13 +311,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   userName: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
-    marginBottom: 12,
+    marginBottom: 2,
+  },
+  userEmail: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 10,
   },
   companyInfoContainer: {
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
   },
@@ -308,10 +338,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   menuSection: {
-    marginBottom: 24,
-  },
-  statsSection: {
-    marginBottom: 24,
+    marginBottom: 18,
   },
   menuSectionTitle: {
     fontSize: 16,
@@ -319,65 +346,66 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     marginBottom: 12,
   },
+  statusInlineSection: {
+    marginBottom: 12,
+  },
+  statusInlineTitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 6,
+    fontWeight: "600",
+  },
+  statusInlineRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  statusInlineItem: {
+    width: "24%",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    paddingVertical: 6,
+    alignItems: "center",
+  },
+  statusInlineValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1F2937",
+    lineHeight: 16,
+  },
+  statusInlineLabel: {
+    marginTop: 1,
+    fontSize: 10,
+    color: "#6B7280",
+    lineHeight: 12,
+  },
   menuGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 6,
   },
   menuItem: {
     width: "48%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    minHeight: 84,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
   menuIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: 20,
+    marginBottom: 2,
   },
   menuLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: "#1F2937",
     textAlign: "center",
-    fontWeight: "600",
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  statCard: {
-    width: "48%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statIcon: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1F2937",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 4,
+    fontWeight: "500",
   },
 });

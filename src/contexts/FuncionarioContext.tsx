@@ -4,11 +4,8 @@
  */
 
 import React, { createContext, useState, useContext, useCallback } from "react";
-import { FuncionarioContexto, Funcionario } from "../domains/auth/types";
-import {
-  autenticarFuncionario,
-  listarFuncionarios,
-} from "../services/firebase/funcionarioService";
+import { FuncionarioContexto } from "../domains/auth/types";
+import { autenticarFuncionarioPorNome } from "../services/firebase/funcionarioService";
 
 interface FuncionarioContextType {
   // Sessão do funcionário logado
@@ -19,11 +16,7 @@ interface FuncionarioContextType {
   error: string | null;
 
   // Métodos
-  loginFuncionario: (
-    empresaId: string,
-    nome: string,
-    senha: string,
-  ) => Promise<void>;
+  loginFuncionario: (nome: string, senha: string) => Promise<void>;
   logoutFuncionario: () => void;
   clearError: () => void;
 }
@@ -41,44 +34,36 @@ export const FuncionarioProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loginFuncionario = useCallback(
-    async (empresaId: string, nome: string, senha: string) => {
-      setIsLoading(true);
-      setError(null);
+  const loginFuncionario = useCallback(async (nome: string, senha: string) => {
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        // Autenticar funcionário
-        const funcionarioData = await autenticarFuncionario(
-          empresaId,
-          nome,
-          senha,
-        );
+    try {
+      const funcionarioData = await autenticarFuncionarioPorNome(nome, senha);
 
-        if (!funcionarioData) {
-          throw new Error("Nome ou senha incorretos");
-        }
-
-        // Configurar sessão do funcionário
-        setFuncionario({
-          funcionarioId: funcionarioData.id,
-          funcionarioNome: funcionarioData.nome,
-          qualificacao: funcionarioData.qualificacao,
-          empresaId,
-        });
-
-        console.log("[FuncionarioContext] Funcionário logado:", nome);
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Erro ao fazer login";
-        setError(message);
-        console.error("[FuncionarioContext] Erro no login:", message);
-        throw err;
-      } finally {
-        setIsLoading(false);
+      if (!funcionarioData) {
+        throw new Error("Nome ou senha incorretos");
       }
-    },
-    [],
-  );
+
+      // Configurar sessão do funcionário
+      setFuncionario({
+        funcionarioId: funcionarioData.id,
+        funcionarioNome: funcionarioData.nome,
+        qualificacao: funcionarioData.qualificacao,
+        empresaId: funcionarioData.empresaId,
+      });
+
+      console.log("[FuncionarioContext] Funcionário logado:", nome);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao fazer login";
+      setError(message);
+      console.error("[FuncionarioContext] Erro no login:", message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const logoutFuncionario = useCallback(() => {
     setFuncionario(null);

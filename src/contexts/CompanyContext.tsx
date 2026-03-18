@@ -3,6 +3,7 @@ import { Company } from "../types";
 import { db } from "../config/firebase";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
+import { useFuncionario } from "./FuncionarioContext";
 import {
   getCompany,
   checkUserHasCompany,
@@ -29,15 +30,22 @@ const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { funcionario } = useFuncionario();
   const [company, setCompany] = useState<Company | null>(null);
-  const [isLoadingCompany, setIsLoadingCompany] = useState(true);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(false);
   const [companyError, setCompanyError] = useState<string | null>(null);
 
   /**
    * Busca a empresa do usuário atual
    */
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id && !funcionario?.empresaId) {
+      setCompany(null);
+      setIsLoadingCompany(false);
+      return;
+    }
+
+    if (user?.id && user?.necessarioCriarPerfil) {
       setCompany(null);
       setIsLoadingCompany(false);
       return;
@@ -48,8 +56,10 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         setIsLoadingCompany(true);
         setCompanyError(null);
 
-        // Buscar empresaId do usuário
-        const empresaId = await getUserCompanyId(user.id);
+        // Buscar empresaId do usuário autenticado (proprietário) ou usar empresa do funcionário
+        const empresaId = user?.id
+          ? await getUserCompanyId(user.id)
+          : funcionario?.empresaId || null;
 
         if (empresaId) {
           // Buscar dados da empresa
@@ -71,7 +81,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchCompany();
-  }, [user?.id]);
+  }, [user?.id, user?.necessarioCriarPerfil, funcionario?.empresaId]);
 
   /**
    * Registra uma nova empresa para o usuário
@@ -106,6 +116,13 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           newCompany,
         );
         setCompany(newCompany);
+      } else {
+        // Fallback para evitar estado inconsistente caso leitura imediata falhe
+        setCompany({
+          companyId: empresaId,
+          userId: user.id,
+          ...companyData,
+        } as Company);
       }
     } catch (error) {
       console.error("[CompanyContext] Erro ao registrar empresa:", error);

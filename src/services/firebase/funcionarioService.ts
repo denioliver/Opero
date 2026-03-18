@@ -13,11 +13,30 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Funcionario, FuncionarioQualificacao } from '../../domains/auth/types';
 import bcrypt from 'bcryptjs';
+
+let bcryptRandomFallbackConfigured = false;
+
+function ensureBcryptRandomFallback(): void {
+  if (bcryptRandomFallbackConfigured) return;
+
+  bcrypt.setRandomFallback((len: number) => {
+    const cryptoApi = (globalThis as any)?.crypto;
+
+    if (cryptoApi?.getRandomValues) {
+      const buffer = new Uint8Array(len);
+      cryptoApi.getRandomValues(buffer);
+      return Array.from(buffer);
+    }
+
+    return Array.from({ length: len }, () => Math.floor(Math.random() * 256));
+  });
+
+  bcryptRandomFallbackConfigured = true;
+}
 
 /**
  * Cria um funcionário na empresa
@@ -31,14 +50,28 @@ export async function criarFuncionario(
   telefone?: string
 ): Promise<string> {
   try {
+    ensureBcryptRandomFallback();
+
+    const nomeLimpo = (nome ?? '').toString().trim();
+    const senhaLimpa = (senha ?? '').toString();
+
+    if (!nomeLimpo) {
+      throw new Error('Nome do funcionário é obrigatório');
+    }
+
+    if (!senhaLimpa) {
+      throw new Error('Senha do funcionário é obrigatória');
+    }
+
     // Valida se funcionário com este nome já existe na empresa
-    const jaExiste = await funcionarioExistePorNome(empresaId, nome);
+    const jaExiste = await funcionarioExistePorNome(empresaId, nomeLimpo);
     if (jaExiste) {
-      throw new Error(`Funcionário com nome "${nome}" já existe nesta empresa`);
+      throw new Error(`Funcionário com nome "${nomeLimpo}" já existe nesta empresa`);
     }
 
     // Hash da senha
-    const senhaHash = await bcrypt.hash(senha, 10);
+    const salt = await bcrypt.genSalt(10);
+    const senhaHash = await bcrypt.hash(senhaLimpa, salt);
 
     const funcionariosRef = collection(db, 'empresas', empresaId, 'funcionarios');
     const novoFuncionarioRef = doc(funcionariosRef);
@@ -46,11 +79,11 @@ export async function criarFuncionario(
     const funcionarioData: Funcionario = {
       id: novoFuncionarioRef.id,
       empresaId,
-      nome,
+      nome: nomeLimpo,
       senha: senhaHash,
       qualificacao,
-      email: email || undefined,
-      telefone: telefone || undefined,
+      ...(email ? { email } : {}),
+      ...(telefone ? { telefone } : {}),
       createdAt: new Date(),
       updatedAt: new Date(),
       ativo: true,
@@ -58,7 +91,7 @@ export async function criarFuncionario(
 
     await setDoc(novoFuncionarioRef, funcionarioData);
     console.log(
-      `[funcionarioService] Funcionário criado: ${nome} em empresa ${empresaId}`
+      `[funcionarioService] Funcionário criado: ${nomeLimpo} em empresa ${empresaId}`
     );
 
     return novoFuncionarioRef.id;
@@ -180,7 +213,12 @@ export async function autenticarFuncionario(
     } as Funcionario;
 
     // Verifica senha
-    const senhaValida = await bcrypt.compare(senhaPlain, funcionario.senha);
+    if (typeof funcionario.senha !== 'string') {
+      console.error('[funcionarioService] Hash de senha inválido no cadastro do funcionário');
+      return null;
+    }
+
+    const senhaValida = await bcrypt.compare((senhaPlain ?? '').toString(), funcionario.senha);
 
     if (!senhaValida) {
       console.log('[funcionarioService] Senha inválida para:', nome);
@@ -196,6 +234,80 @@ export async function autenticarFuncionario(
 }
 
 /**
+ * Autentica funcionário apenas com nome + senha
+ * Busca em todas as empresas e retorna o funcionário correspondente
+ */
+export async function autenticarFuncionarioPorNome(
+  nome: string,
+  senhaPlain: string
+): Promise<Funcionario | null> {
+  try {
+    ensureBcryptRandomFallback();
+
+    const nomeLimpo = (nome ?? '').toString().trim();
+    const senhaLimpa = (senhaPlain ?? '').toString();
+
+    if (!nomeLimpo || !senhaLimpa) {
+      return null;
+    }
+
+    const funcionariosValidos: Funcionario[] = [];
+
+    // Evita depender de índice de collectionGroup em Firestore
+    const empresasSnapshot = await getDocs(collection(db, 'empresas'));
+
+    for (const empresaDoc of empresasSnapshot.docs) {
+      const empresaId = empresaDoc.id;
+      const funcionariosRef = collection(db, 'empresas', empresaId, 'funcionarios');
+      const q = query(funcionariosRef, where('nome', '==', nomeLimpo));
+      const funcionariosSnapshot = await getDocs(q);
+
+      for (const funcionarioDoc of funcionariosSnapshot.docs) {
+        const data = funcionarioDoc.data() as any;
+
+        if (data?.ativo !== true) {
+          continue;
+        }
+
+        if (typeof data?.senha !== 'string') {
+          continue;
+        }
+
+        const senhaValida = await bcrypt.compare(senhaLimpa, data.senha);
+        if (!senhaValida) {
+          continue;
+        }
+
+        funcionariosValidos.push({
+          ...data,
+          id: funcionarioDoc.id,
+          empresaId,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          updatedAt: data.updatedAt?.toDate?.() || new Date(),
+        } as Funcionario);
+      }
+    }
+
+    if (funcionariosValidos.length === 0) {
+      console.log('[funcionarioService] Funcionário não encontrado:', nomeLimpo);
+      return null;
+    }
+
+    if (funcionariosValidos.length > 1) {
+      throw new Error(
+        'Há mais de um funcionário com esse nome e senha em empresas diferentes. Informe o nome completo exclusivo ou contate o administrador.'
+      );
+    }
+
+    console.log('[funcionarioService] Funcionário autenticado por nome:', nomeLimpo);
+    return funcionariosValidos[0];
+  } catch (error) {
+    console.error('[funcionarioService] Erro ao autenticar funcionário por nome:', error);
+    throw error;
+  }
+}
+
+/**
  * Atualiza funcionário
  */
 export async function atualizarFuncionario(
@@ -204,6 +316,8 @@ export async function atualizarFuncionario(
   dados: Partial<Funcionario>
 ): Promise<void> {
   try {
+    ensureBcryptRandomFallback();
+
     const funcionarioRef = doc(
       db,
       'empresas',
@@ -215,7 +329,7 @@ export async function atualizarFuncionario(
     const dataAtualizada = {
       ...dados,
       updatedAt: new Date(),
-    };
+    } as Record<string, any>;
 
     // Remove campos que não devem ser atualizados
     delete (dataAtualizada as any).id;
@@ -224,8 +338,17 @@ export async function atualizarFuncionario(
 
     // Se atualizando senha, faz hash
     if (dataAtualizada.senha) {
-      dataAtualizada.senha = await bcrypt.hash(dataAtualizada.senha, 10);
+      const senhaTexto = (dataAtualizada.senha ?? '').toString();
+      const salt = await bcrypt.genSalt(10);
+      dataAtualizada.senha = await bcrypt.hash(senhaTexto, salt);
     }
+
+    // Firestore não aceita undefined
+    Object.keys(dataAtualizada).forEach((key) => {
+      if (dataAtualizada[key] === undefined) {
+        delete dataAtualizada[key];
+      }
+    });
 
     await updateDoc(funcionarioRef, dataAtualizada);
     console.log(`[funcionarioService] Funcionário atualizado: ${funcionarioId}`);

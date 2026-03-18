@@ -72,10 +72,7 @@ export const Login: React.FC = () => {
       // Se sucesso, onAuthStateChanged dispara e navega
     } else {
       // Login como Funcionário
-      Alert.alert(
-        "ℹ️ Login de Funcionário",
-        "Para fazer login como funcionário, você precisa saber o ID da empresa.\n\nPor enquanto, use o email (como admin/proprietário) e crie funcionários na tela de 'Acessos'.",
-      );
+      await loginFuncionario(emailOrName.trim(), password);
     }
   };
 

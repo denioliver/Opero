@@ -54,7 +54,7 @@ export function validateCNPJFormat(cnpj: string): boolean {
 
 /**
  * Valida se o email é corporativo (pertence à empresa)
- * Verifica se o domínio do email contém parte do nome da empresa
+ * Verifica se o domínio do email contém parte da razão social da empresa
  */
 export function validateCorporateEmail(email: string, companyName: string): boolean {
   if (!email || !companyName) return false;

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, ActivityIndicator } from "react-native";
 import { useAuth } from "../contexts/AuthContext";
+import { useFuncionario } from "../contexts/FuncionarioContext";
 import { useCompany } from "../contexts/CompanyContext";
 import AuthStack from "./AuthStack";
 import CompanyRegisterStack from "./CompanyRegisterStack";
@@ -9,11 +10,18 @@ import AdminStack from "./AdminStack";
 
 export default function RootNavigator() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { funcionario } = useFuncionario();
   const { company, isLoadingCompany } = useCompany();
+  const hasFuncionarioSession = !!funcionario;
 
   // Mostrar loading APENAS se está carregando dados da empresa após autenticar
   // Durante login, o botão já gira - não precisa de tela de loading global
-  if (isAuthenticated && isLoadingCompany) {
+  if (
+    (isAuthenticated || hasFuncionarioSession) &&
+    isLoadingCompany &&
+    !company &&
+    !user?.necessarioCriarPerfil
+  ) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#2563EB" />
@@ -22,7 +30,7 @@ export default function RootNavigator() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !hasFuncionarioSession) {
     return <AuthStack />;
   }
 
@@ -37,8 +45,12 @@ export default function RootNavigator() {
   }
 
   // Se é usuário comum (proprietário) e não tem empresa
-  if (!company) {
+  if (!company && isAuthenticated) {
     return <CompanyRegisterStack />;
+  }
+
+  if (hasFuncionarioSession) {
+    return <AppStack />;
   }
 
   return <AppStack />;

@@ -29,6 +29,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   error: string | null;
   clearError: () => void;
+  resetarNecessarioCriarPerfil: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -113,24 +114,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 necessarioCriarPerfil: true,
               });
             }
-
-            // Se estava em login, marca como completo
-            if (isLoginInProgress) {
-              console.log(
-                "[AuthContext] Login concluído, setando isLoading=false",
-              );
-              setIsLoading(false);
-              setIsLoginInProgress(false);
-            }
           } else {
             // Usuário deslogado
             setUser(null);
-            setIsLoading(false);
-            // Se há erro de login, manter isLoginInProgress=true para evitar re-renders desnecessários
-            // Isso evita que onAuthStateChanged dispare novamente enquanto há erro exibido
-            if (!error) {
-              setIsLoginInProgress(false);
-            }
           }
 
           // Marca que já inicializou na primeira resposta
@@ -138,6 +124,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             console.log("[AuthContext] Primeira resposta recebida");
             setHasInitialized(true);
           }
+
+          // Finaliza qualquer estado de loading/login pendente
+          setIsLoading(false);
+          setIsLoginInProgress(false);
         } catch (err) {
           console.error("[AuthContext] Erro ao processar autenticação:", err);
           setIsLoading(false);
@@ -234,6 +224,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setError(null);
   };
 
+  const resetarNecessarioCriarPerfil = () => {
+    if (user) {
+      console.log("[AuthContext] Resetando necessarioCriarPerfil para false");
+      setUser({
+        ...user,
+        necessarioCriarPerfil: false,
+      });
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isLoading,
@@ -243,6 +243,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     logout,
     error,
     clearError,
+    resetarNecessarioCriarPerfil,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

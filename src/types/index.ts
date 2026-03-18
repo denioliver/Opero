@@ -13,11 +13,14 @@ export interface User {
 
 export interface Company {
   companyId: string;
-  userId: string; // Proprietário da empresa
-  name: string;
+  userId: string; // ID do proprietário (Firebase)
+  ownerName: string; // Nome completo do proprietário
+  ownerEmail: string; // Email de acesso do proprietário (Firebase Auth)
+  ownerDocument: string; // CPF do proprietário (referente ao CNPJ)
+  name: string; // Razão social da empresa
   cnpj: string; // Único, necessário para notas fiscais
   phone: string;
-  email: string;
+  email: string; // Email da empresa (CNPJ)
   address: {
     street: string;
     number: string;
@@ -26,8 +29,8 @@ export interface Company {
   city: string;
   state: string; // UF
   zipCode: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: any; // Timestamp do Firestore
+  updatedAt: any; // Timestamp do Firestore
 }
 
 export interface Client {
