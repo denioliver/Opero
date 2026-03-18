@@ -198,7 +198,7 @@ export const AcessosScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>👥 Acessos & Funcionários</Text>
+          <Text style={styles.title}>Acessos e Funcionários</Text>
           <Text style={styles.subtitle}>Gerenciar acesso à empresa</Text>
         </View>
       </View>
@@ -216,7 +216,7 @@ export const AcessosScreen: React.FC = () => {
         style={styles.createBtn}
         onPress={() => handleOpenModal()}
       >
-        <Text style={styles.createBtnText}>➕ Criar Novo Funcionário</Text>
+        <Text style={styles.createBtnText}>Criar Novo Funcionário</Text>
       </TouchableOpacity>
 
       {/* Lista */}
@@ -249,7 +249,6 @@ export const AcessosScreen: React.FC = () => {
                   ]}
                 >
                   <Text style={styles.badgeText}>
-                    {item.ativo ? "🟢" : "🔴"}{" "}
                     {item.ativo ? "Ativo" : "Inativo"}
                   </Text>
                 </View>
@@ -259,24 +258,24 @@ export const AcessosScreen: React.FC = () => {
               <View style={styles.cardContent}>
                 {item.email && (
                   <View style={styles.infoRow}>
-                    <Text style={styles.label}>📧 Email:</Text>
+                    <Text style={styles.label}>Email:</Text>
                     <Text style={styles.value}>{item.email}</Text>
                   </View>
                 )}
                 {item.telefone && (
                   <View style={styles.infoRow}>
-                    <Text style={styles.label}>📞 Tel:</Text>
+                    <Text style={styles.label}>Telefone:</Text>
                     <Text style={styles.value}>{item.telefone}</Text>
                   </View>
                 )}
                 <View style={styles.infoRow}>
-                  <Text style={styles.label}>📅 Criado:</Text>
+                  <Text style={styles.label}>Criado em:</Text>
                   <Text style={styles.value}>
                     {new Date(item.createdAt).toLocaleDateString("pt-BR")}
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
-                  <Text style={styles.label}>🛡️ Admin:</Text>
+                  <Text style={styles.label}>Administração:</Text>
                   <Text style={styles.value}>
                     {item.canAccessAdminCards ? "Permitido" : "Sem acesso"}
                   </Text>
@@ -289,7 +288,7 @@ export const AcessosScreen: React.FC = () => {
                   style={[styles.actionBtn, styles.btnEdit]}
                   onPress={() => handleOpenModal(item)}
                 >
-                  <Text style={styles.actionBtnText}>✏️ Editar</Text>
+                  <Text style={styles.actionBtnText}>Editar</Text>
                 </TouchableOpacity>
 
                 {item.ativo && (
@@ -297,7 +296,7 @@ export const AcessosScreen: React.FC = () => {
                     style={[styles.actionBtn, styles.btnDeactivate]}
                     onPress={() => handleDesativar(item)}
                   >
-                    <Text style={styles.actionBtnText}>🚫 Desativar</Text>
+                    <Text style={styles.actionBtnText}>Desativar</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -314,7 +313,7 @@ export const AcessosScreen: React.FC = () => {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editingId ? "✏️ Editar Funcionário" : "➕ Novo Funcionário"}
+                {editingId ? "Editar Funcionário" : "Novo Funcionário"}
               </Text>
               <TouchableOpacity onPress={handleCloseModal}>
                 <Text style={styles.closeBtn}>✕</Text>

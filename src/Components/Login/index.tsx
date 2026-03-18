@@ -103,10 +103,10 @@ export const Login: React.FC = () => {
 
           {/* Info Box */}
           <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>📧 Email:</Text>
-            <Text style={styles.infoText}>Admin ou Proprietário</Text>
+            <Text style={styles.infoTitle}>Acesso por Email</Text>
+            <Text style={styles.infoText}>Administrador ou Proprietário</Text>
             <Text style={styles.infoTitle} style={{ marginTop: 8 }}>
-              👤 Nome:
+              Acesso por Nome
             </Text>
             <Text style={styles.infoText}>Funcionário da empresa</Text>
           </View>
@@ -150,7 +150,9 @@ export const Login: React.FC = () => {
                 onPress={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
               >
-                <Text>{showPassword ? "👁️" : "🔒"}</Text>
+                <Text style={styles.eyeBtnText}>
+                  {showPassword ? "Ocultar" : "Mostrar"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -285,6 +287,12 @@ const styles = StyleSheet.create({
   },
   eyeBtn: {
     paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  eyeBtnText: {
+    fontSize: 12,
+    color: "#4B5563",
+    fontWeight: "600",
   },
   button: {
     backgroundColor: "#2563EB",

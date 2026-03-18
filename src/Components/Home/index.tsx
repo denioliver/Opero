@@ -82,28 +82,28 @@ export const Home: React.FC = () => {
   const menuItems = [
     {
       id: "clients",
-      icon: "👥",
+      icon: "CLI",
       label: "Clientes",
       onPress: () =>
         navigation.navigate("ClientsList" as keyof RootStackParamList),
     },
     {
       id: "products",
-      icon: "📦",
-      label: "Produtos",
+      icon: "PRD",
+      label: "Produtos/Serviços",
       onPress: () =>
         navigation.navigate("ProductsList" as keyof RootStackParamList),
     },
     {
       id: "orders",
-      icon: "📋",
+      icon: "OS",
       label: "Ordens de Serviço",
       onPress: () =>
         navigation.navigate("OrdersList" as keyof RootStackParamList),
     },
     {
       id: "invoices",
-      icon: "🧾",
+      icon: "NF",
       label: "Notas Fiscais",
       onPress: () =>
         navigation.navigate("InvoicesList" as keyof RootStackParamList),
@@ -113,13 +113,13 @@ export const Home: React.FC = () => {
   const adminMenuItems = [
     {
       id: "acessos",
-      icon: "🔑",
+      icon: "ACS",
       label: "Acessos",
       onPress: () => navigation.navigate("Acessos" as keyof RootStackParamList),
     },
     {
       id: "auditoria",
-      icon: "📊",
+      icon: "HIS",
       label: "Histórico",
       onPress: () =>
         navigation.navigate("Auditoria" as keyof RootStackParamList),
@@ -176,7 +176,7 @@ export const Home: React.FC = () => {
       >
         {/* Welcome Card */}
         <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeText}>Bem-vindo! 👋</Text>
+          <Text style={styles.welcomeText}>Bem-vindo</Text>
           <Text style={styles.userName}>{ownerDisplayName}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
           {company && (
@@ -403,8 +403,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   menuIcon: {
-    fontSize: 20,
+    fontSize: 12,
     marginBottom: 2,
+    color: "#4B5563",
+    fontWeight: "700",
   },
   menuLabel: {
     fontSize: 11,

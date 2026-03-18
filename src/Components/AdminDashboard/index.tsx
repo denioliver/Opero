@@ -222,7 +222,7 @@ export const AdminDashboard: React.FC = () => {
               ]}
             >
               <Text style={styles.statusText}>
-                {empresa.proprietario.ativo ? "🟢 Ativa" : "🔴 Bloqueada"}
+                {empresa.proprietario.ativo ? "Ativa" : "Bloqueada"}
               </Text>
             </View>
           </View>
@@ -282,7 +282,7 @@ export const AdminDashboard: React.FC = () => {
                 )
               }
             >
-              <Text style={styles.btnText}>ℹ️ Detalhes</Text>
+              <Text style={styles.btnText}>Detalhes</Text>
             </TouchableOpacity>
 
             {empresa.proprietario.ativo ? (
@@ -290,14 +290,14 @@ export const AdminDashboard: React.FC = () => {
                 style={[styles.btn, styles.btnWarning]}
                 onPress={() => handleBloqueio(empresa)}
               >
-                <Text style={styles.btnText}>🚫 Bloquear</Text>
+                <Text style={styles.btnText}>Bloquear</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={[styles.btn, styles.btnSuccess]}
                 onPress={() => handleDesbloquei(empresa)}
               >
-                <Text style={styles.btnText}>✅ Desbloquear</Text>
+                <Text style={styles.btnText}>Desbloquear</Text>
               </TouchableOpacity>
             )}
 
@@ -305,7 +305,7 @@ export const AdminDashboard: React.FC = () => {
               style={[styles.btn, styles.btnDanger]}
               onPress={() => handleDeletar(empresa)}
             >
-              <Text style={styles.btnText}>🗑️ Deletar</Text>
+              <Text style={styles.btnText}>Deletar</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -63,7 +63,7 @@ export function ClientProfile({
 
   const cliente = clienteSelecionado;
   const tipoLabel = cliente.tipo === "pf" ? "Pessoa Física" : "Pessoa Jurídica";
-  const statusLabel = cliente.status === "ativo" ? "🟢 Ativo" : "🔴 Arquivado";
+  const statusLabel = cliente.status === "ativo" ? "Ativo" : "Arquivado";
   const documentoLabel = cliente.tipo === "pf" ? "CPF" : "CNPJ";
 
   return (
@@ -254,7 +254,7 @@ function OrdensTab({ clienteId }: { clienteId: string }) {
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Histórico de Ordens</Text>
       <View style={styles.emptyStateBox}>
-        <Text style={styles.emptyStateText}>📋</Text>
+        <Text style={styles.emptyStateText}>—</Text>
         <Text style={styles.emptyStateTitle}>Sem ordens registradas</Text>
         <Text style={styles.emptyStateDescription}>
           As ordens de serviço deste cliente aparecerão aqui
@@ -269,7 +269,7 @@ function FinanceiroTab({ clienteId }: { clienteId: string }) {
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Histórico Financeiro</Text>
       <View style={styles.emptyStateBox}>
-        <Text style={styles.emptyStateText}>💰</Text>
+        <Text style={styles.emptyStateText}>—</Text>
         <Text style={styles.emptyStateTitle}>Sem movimentações</Text>
         <Text style={styles.emptyStateDescription}>
           O histórico financeiro deste cliente aparecerá aqui

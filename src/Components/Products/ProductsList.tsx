@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-} from 'react-native';
-import { useProducts } from '../../contexts/ProductsContext';
-import { Product } from '../../types';
+} from "react-native";
+import { useProducts } from "../../contexts/ProductsContext";
+import { Product } from "../../types";
 
 interface ProductsListProps {
   onSelectProduct?: (product: Product) => void;
@@ -18,8 +18,9 @@ interface ProductsListProps {
 }
 
 export function ProductsList({ onSelectProduct, onAddNew }: ProductsListProps) {
-  const { products, isLoadingProducts, loadProducts, deleteProduct } = useProducts();
-  const [searchText, setSearchText] = useState('');
+  const { products, isLoadingProducts, loadProducts, deleteProduct } =
+    useProducts();
+  const [searchText, setSearchText] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,32 +28,36 @@ export function ProductsList({ onSelectProduct, onAddNew }: ProductsListProps) {
   }, []);
 
   const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(searchText.toLowerCase())
+    product.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
   const handleDelete = (productId: string, productName: string) => {
-    Alert.alert('Confirmar exclusão', `Deseja excluir o produto "${productName}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(productId);
-          try {
-            await deleteProduct(productId);
-            Alert.alert('Sucesso', 'Produto excluído com sucesso');
-          } catch (error) {
-            Alert.alert('Erro', 'Erro ao excluir produto');
-          } finally {
-            setDeleting(null);
-          }
+    Alert.alert(
+      "Confirmar exclusão",
+      `Deseja excluir o produto "${productName}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(productId);
+            try {
+              await deleteProduct(productId);
+              Alert.alert("Sucesso", "Produto excluído com sucesso");
+            } catch (error) {
+              Alert.alert("Erro", "Erro ao excluir produto");
+            } finally {
+              setDeleting(null);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   const formatPrice = (price: number) => {
-    return `R$ ${price.toFixed(2).replace('.', ',')}`;
+    return `R$ ${price.toFixed(2).replace(".", ",")}`;
   };
 
   const renderProductItem = ({ item }: { item: Product }) => (
@@ -88,7 +93,7 @@ export function ProductsList({ onSelectProduct, onAddNew }: ProductsListProps) {
           {deleting === item.productId ? (
             <ActivityIndicator size="small" color="#EF4444" />
           ) : (
-            <Text style={[styles.actionButtonText, { color: '#EF4444' }]}>
+            <Text style={[styles.actionButtonText, { color: "#EF4444" }]}>
               Deletar
             </Text>
           )}
@@ -100,7 +105,7 @@ export function ProductsList({ onSelectProduct, onAddNew }: ProductsListProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>📦 Produtos e Serviços</Text>
+        <Text style={styles.title}>Produtos e Serviços</Text>
         <TouchableOpacity style={styles.addButton} onPress={onAddNew}>
           <Text style={styles.addButtonText}>+ Novo Produto</Text>
         </TouchableOpacity>
@@ -123,11 +128,15 @@ export function ProductsList({ onSelectProduct, onAddNew }: ProductsListProps) {
       ) : filteredProducts.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
-            {searchText ? 'Nenhum produto encontrado' : 'Você ainda não tem produtos cadastrados'}
+            {searchText
+              ? "Nenhum produto encontrado"
+              : "Você ainda não tem produtos cadastrados"}
           </Text>
           {!searchText && (
             <TouchableOpacity style={styles.emptyButton} onPress={onAddNew}>
-              <Text style={styles.emptyButtonText}>Cadastrar Primeiro Produto</Text>
+              <Text style={styles.emptyButtonText}>
+                Cadastrar Primeiro Produto
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -147,77 +156,77 @@ export function ProductsList({ onSelectProduct, onAddNew }: ProductsListProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFB',
+    backgroundColor: "#F8FAFB",
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: "700",
+    color: "#1F2937",
     marginBottom: 12,
   },
   addButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 6,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 14,
   },
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   searchInput: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1F2937',
+    color: "#1F2937",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 24,
   },
   emptyText: {
     fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
+    color: "#6B7280",
+    textAlign: "center",
     marginBottom: 16,
   },
   emptyButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 6,
   },
   emptyButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 14,
   },
   listContent: {
@@ -225,17 +234,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   productCard: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    overflow: 'hidden',
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
   },
   productContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
@@ -244,56 +253,56 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
     marginBottom: 4,
   },
   productMetadata: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 6,
   },
   productCategory: {
     fontSize: 12,
-    color: '#7C3AED',
-    fontWeight: '500',
+    color: "#7C3AED",
+    fontWeight: "500",
     marginRight: 8,
   },
   productUnit: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   productPrice: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#059669',
+    fontWeight: "700",
+    color: "#059669",
   },
   arrowIcon: {
     fontSize: 24,
-    color: '#D1D5DB',
+    color: "#D1D5DB",
   },
   productActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: "#F3F4F6",
   },
   actionButton: {
     flex: 1,
     paddingVertical: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRightWidth: 1,
-    borderRightColor: '#F3F4F6',
+    borderRightColor: "#F3F4F6",
   },
   editButton: {
-    backgroundColor: '#F0F9FF',
+    backgroundColor: "#F0F9FF",
   },
   deleteButton: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: "#FEF2F2",
     borderRightWidth: 0,
   },
   actionButtonText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#2563EB',
+    fontWeight: "600",
+    color: "#2563EB",
   },
 });

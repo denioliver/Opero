@@ -32,6 +32,7 @@ export const AuditoriaScreen: React.FC = () => {
   const params = (route.params || {}) as AuditoriaRouteParams;
   const statusKey = params.statusKey;
   const statusLabel = params.statusLabel;
+  const isStatusHistory = !!statusKey;
   const [auditorias, setAuditorias] = useState<AuditoriaLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<AuditoriaLog | null>(null);
@@ -117,20 +118,20 @@ export const AuditoriaScreen: React.FC = () => {
 
   const getActionIcon = (acao: string) => {
     const icons: Record<string, string> = {
-      criar_cliente: "➕",
-      editar_cliente: "✏️",
-      deletar_cliente: "🗑️",
-      criar_produto: "➕",
-      editar_produto: "✏️",
-      deletar_produto: "🗑️",
-      criar_ordem: "➕",
-      editar_ordem: "✏️",
-      completar_ordem: "✅",
-      criar_funcionario: "➕",
-      editar_funcionario: "✏️",
-      desativar_funcionario: "🚫",
+      criar_cliente: "CRI",
+      editar_cliente: "EDT",
+      deletar_cliente: "DEL",
+      criar_produto: "CRI",
+      editar_produto: "EDT",
+      deletar_produto: "DEL",
+      criar_ordem: "CRI",
+      editar_ordem: "EDT",
+      completar_ordem: "OK",
+      criar_funcionario: "CRI",
+      editar_funcionario: "EDT",
+      desativar_funcionario: "BLO",
     };
-    return icons[acao] || "📋";
+    return icons[acao] || "LOG";
   };
 
   const getActionLabel = (acao: string) => {
@@ -164,7 +165,7 @@ export const AuditoriaScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>📊 Histórico de Ações</Text>
+          <Text style={styles.title}>Histórico de Ações</Text>
           <Text style={styles.subtitle}>
             {statusLabel
               ? `Histórico de ${statusLabel}`
@@ -213,7 +214,9 @@ export const AuditoriaScreen: React.FC = () => {
                       {getActionLabel(item.acao)}
                     </Text>
                     <Text style={styles.cardSubtitle}>
-                      {item.funcionarioNome}
+                      {isStatusHistory
+                        ? `ID: ${item.documentoId}`
+                        : `Por ${item.funcionarioNome}`}
                     </Text>
                   </View>
                 </View>
@@ -234,10 +237,18 @@ export const AuditoriaScreen: React.FC = () => {
 
               {/* Card Body */}
               <View style={styles.cardContent}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.label}>Função:</Text>
-                  <Text style={styles.value}>{item.qualificacao}</Text>
-                </View>
+                {!isStatusHistory && (
+                  <>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.label}>Responsável:</Text>
+                      <Text style={styles.value}>{item.funcionarioNome}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.label}>Cargo:</Text>
+                      <Text style={styles.value}>{item.qualificacao}</Text>
+                    </View>
+                  </>
+                )}
                 <View style={styles.detailRow}>
                   <Text style={styles.label}>Coleção:</Text>
                   <Text style={styles.value}>{item.colecao}</Text>
@@ -269,9 +280,7 @@ export const AuditoriaScreen: React.FC = () => {
             <View style={styles.modalContent}>
               {/* Modal Header */}
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {getActionIcon(selectedLog.acao)} Detalhes da Ação
-                </Text>
+                <Text style={styles.modalTitle}>Detalhes da Ação</Text>
                 <TouchableOpacity onPress={handleCloseModal}>
                   <Text style={styles.closeBtn}>✕</Text>
                 </TouchableOpacity>
@@ -280,27 +289,29 @@ export const AuditoriaScreen: React.FC = () => {
               {/* Modal Body */}
               <ScrollView style={styles.modalBody}>
                 {/* Quem */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>👤 Quem Fez</Text>
-                  <View style={styles.dataBox}>
-                    <View style={styles.dataRow}>
-                      <Text style={styles.dataLabel}>Nome:</Text>
-                      <Text style={styles.dataValue}>
-                        {selectedLog.funcionarioNome}
-                      </Text>
-                    </View>
-                    <View style={styles.dataRow}>
-                      <Text style={styles.dataLabel}>Função:</Text>
-                      <Text style={styles.dataValue}>
-                        {selectedLog.qualificacao}
-                      </Text>
+                {!isStatusHistory && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Responsável</Text>
+                    <View style={styles.dataBox}>
+                      <View style={styles.dataRow}>
+                        <Text style={styles.dataLabel}>Nome:</Text>
+                        <Text style={styles.dataValue}>
+                          {selectedLog.funcionarioNome}
+                        </Text>
+                      </View>
+                      <View style={styles.dataRow}>
+                        <Text style={styles.dataLabel}>Cargo:</Text>
+                        <Text style={styles.dataValue}>
+                          {selectedLog.qualificacao}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
+                )}
 
                 {/* O que */}
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>📋 O que Foi Feito</Text>
+                  <Text style={styles.sectionTitle}>Ação Executada</Text>
                   <View style={styles.dataBox}>
                     <View style={styles.dataRow}>
                       <Text style={styles.dataLabel}>Ação:</Text>
@@ -325,7 +336,7 @@ export const AuditoriaScreen: React.FC = () => {
 
                 {/* Quando */}
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>📅 Quando</Text>
+                  <Text style={styles.sectionTitle}>Data e Hora</Text>
                   <View style={styles.dataBox}>
                     <View style={styles.dataRow}>
                       <Text style={styles.dataLabel}>Data/Hora:</Text>
@@ -339,7 +350,7 @@ export const AuditoriaScreen: React.FC = () => {
                 {/* Dados */}
                 {Object.keys(selectedLog.dados).length > 0 && (
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>📊 Dados Afetados</Text>
+                    <Text style={styles.sectionTitle}>Dados Afetados</Text>
                     <View style={styles.jsonBox}>
                       <Text style={styles.jsonText}>
                         {JSON.stringify(selectedLog.dados, null, 2)}
@@ -486,8 +497,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   icon: {
-    fontSize: 24,
+    fontSize: 10,
     marginRight: 12,
+    color: "#4B5563",
+    fontWeight: "700",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   titleSection: {
     flex: 1,

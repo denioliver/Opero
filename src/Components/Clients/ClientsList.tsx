@@ -94,7 +94,7 @@ export function ClientsList({
   };
 
   const getStatusLabel = (status: "ativo" | "inativo"): string => {
-    return status === "ativo" ? "🟢 Ativo" : "🔴 Arquivado";
+    return status === "ativo" ? "Ativo" : "Arquivado";
   };
 
   const statusColor = (status: "ativo" | "inativo"): string => {
@@ -132,10 +132,10 @@ export function ClientsList({
           </View>
           <View style={styles.clienteDetailRow}>
             {item.telefone && (
-              <Text style={styles.clienteDetail}>📱 {item.telefone}</Text>
+              <Text style={styles.clienteDetail}>{item.telefone}</Text>
             )}
             {item.email && (
-              <Text style={styles.clienteDetail}>📧 {item.email}</Text>
+              <Text style={styles.clienteDetail}>{item.email}</Text>
             )}
           </View>
         </View>
@@ -171,7 +171,7 @@ export function ClientsList({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>👥 Clientes</Text>
+        <Text style={styles.title}>Clientes</Text>
         <TouchableOpacity style={styles.addButton} onPress={onAddCliente}>
           <Text style={styles.addButtonText}>+ Novo</Text>
         </TouchableOpacity>
@@ -227,7 +227,7 @@ export function ClientsList({
               statusFilter === "ativo" && styles.filterButtonTextActive,
             ]}
           >
-            🟢 Ativos (
+            Ativos (
             {filteredClientes.filter((c) => c.status === "ativo").length})
           </Text>
         </TouchableOpacity>
@@ -245,7 +245,7 @@ export function ClientsList({
               statusFilter === "inativo" && styles.filterButtonTextActive,
             ]}
           >
-            🔴 Arquivados (
+            Arquivados (
             {filteredClientes.filter((c) => c.status === "inativo").length})
           </Text>
         </TouchableOpacity>
