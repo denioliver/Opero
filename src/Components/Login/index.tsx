@@ -7,38 +7,78 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  ScrollView,
 } from "react-native";
-import { validateCredentials } from "../../utils/validation";
 import { useAuth } from "../../contexts/AuthContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [emailOrName, setEmailOrName] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login, isLoading, error: authError, clearError } = useAuth();
+  const {
+    login,
+    isLoading: authLoading,
+    error: authError,
+    clearError,
+  } = useAuth();
+  const {
+    loginFuncionario,
+    isLoading: funcionarioLoading,
+    error: funcionarioError,
+    clearError: clearFuncionarioError,
+  } = useFuncionario();
+
+  const isLoading = authLoading || funcionarioLoading;
+
+  const detectLoginType = (input: string): "email" | "name" => {
+    return input.includes("@") ? "email" : "name";
+  };
 
   const handleLogin = async () => {
     clearError();
-    const validation = validateCredentials(email, password);
+    clearFuncionarioError();
 
-    if (!validation.valid) {
-      Alert.alert("Erro", validation.message || "Email ou senha inválidos");
+    if (!emailOrName.trim() || !password.trim()) {
+      Alert.alert("Erro", "Preencha email/nome e senha");
       return;
     }
 
     try {
-      await login(email, password);
+      const type = detectLoginType(emailOrName);
+
+      if (type === "email") {
+        // Login como Admin ou Proprietário (Firebase)
+        // Não precisa verificar se existe documento antes
+        // AuthContext vai lidar com isso (necessarioCriarPerfil)
+        await login(emailOrName, password);
+      } else {
+        // Login como Funcionário
+        Alert.alert(
+          "ℹ️ Login de Funcionário",
+          "Para fazer login como funcionário, você precisa saber o ID da empresa.\n\nPor enquanto, use o email (como admin/proprietário) e crie funcionários na tela de 'Acessos'.",
+        );
+      }
     } catch (err) {
-      console.error(err);
+      console.error("[Login] Erro:", err);
+      Alert.alert(
+        "Erro",
+        err instanceof Error ? err.message : "Erro ao fazer login",
+      );
     }
   };
 
-  const isFormValid = email.length > 0 && password.length > 0 && !isLoading;
+  const isFormValid =
+    emailOrName.length > 0 && password.length > 0 && !isLoading;
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+    >
       <View style={styles.content}>
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.logo}>
             <Text style={styles.logoText}>O</Text>
@@ -47,22 +87,36 @@ export const Login: React.FC = () => {
           <Text style={styles.subtitle}>Gestão de Empresas</Text>
         </View>
 
-        {authError && (
+        {/* Info Box */}
+        <View style={styles.infoBox}>
+          <Text style={styles.infoTitle}>📧 Email:</Text>
+          <Text style={styles.infoText}>Admin ou Proprietário</Text>
+          <Text style={styles.infoTitle} style={{ marginTop: 8 }}>
+            👤 Nome:
+          </Text>
+          <Text style={styles.infoText}>Funcionário da empresa</Text>
+        </View>
+
+        {/* Errors */}
+        {(authError || funcionarioError) && (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{authError}</Text>
+            <Text style={styles.errorText}>
+              {authError || funcionarioError}
+            </Text>
           </View>
         )}
 
+        {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>Email ou Nome</Text>
           <TextInput
             style={styles.input}
-            placeholder="seu@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
+            placeholder="seu@email.com ou João Silva"
+            value={emailOrName}
+            onChangeText={setEmailOrName}
             autoCapitalize="none"
             editable={!isLoading}
+            placeholderTextColor="#999"
           />
 
           <Text style={styles.label}>Senha</Text>
@@ -74,6 +128,7 @@ export const Login: React.FC = () => {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               editable={!isLoading}
+              placeholderTextColor="#999"
             />
             <TouchableOpacity
               style={styles.eyeBtn}
@@ -85,6 +140,7 @@ export const Login: React.FC = () => {
           </View>
         </View>
 
+        {/* Button */}
         <TouchableOpacity
           style={[
             styles.button,
@@ -100,7 +156,7 @@ export const Login: React.FC = () => {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -109,26 +165,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFB",
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
+    paddingVertical: 20,
     justifyContent: "center",
   },
   header: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 30,
   },
   logo: {
     width: 60,
     height: 60,
+    borderRadius: 30,
     backgroundColor: "#2563EB",
-    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   logoText: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
     color: "#FFF",
   },
@@ -136,73 +196,92 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     color: "#1F2937",
-    marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
     color: "#6B7280",
+    marginTop: 4,
+  },
+  infoBox: {
+    backgroundColor: "#DBEAFE",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#2563EB",
+  },
+  infoTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#2563EB",
+  },
+  infoText: {
+    fontSize: 13,
+    color: "#1F2937",
+    marginBottom: 4,
   },
   errorBox: {
-    backgroundColor: "#FEF2F2",
-    padding: 12,
+    backgroundColor: "#FEE2E2",
     borderRadius: 8,
+    padding: 12,
     marginBottom: 20,
     borderLeftWidth: 4,
     borderLeftColor: "#EF4444",
   },
   errorText: {
-    color: "#DC2626",
+    color: "#991B1B",
     fontSize: 13,
   },
   form: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
-    color: "#1F2937",
+    color: "#374151",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
     borderRadius: 8,
-    marginBottom: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    marginBottom: 16,
+    fontSize: 14,
+    color: "#1F2937",
+    backgroundColor: "#FFF",
   },
   passwordBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingRight: 8,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    backgroundColor: "#FFF",
   },
   passwordInput: {
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 14,
+    color: "#1F2937",
   },
   eyeBtn: {
-    padding: 8,
+    paddingHorizontal: 12,
   },
   button: {
     backgroundColor: "#2563EB",
     borderRadius: 8,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: "center",
   },
   buttonDisabled: {
-    backgroundColor: "#D1D5DB",
+    backgroundColor: "#9CA3AF",
   },
   buttonText: {
     color: "#FFF",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
   },
 });

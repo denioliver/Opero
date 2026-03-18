@@ -12,27 +12,20 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from "firebase/auth";
-import { auth, db } from "../config/firebase";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  company: string;
-}
+import { auth } from "../config/firebase";
+import { UserRole, UserContexto } from "../domains/auth/types";
+import {
+  obterUsuarioPorEmail,
+  obterUsuarioGlobal,
+  criarUsuarioGlobal,
+} from "../services/firebase/usuarioService";
 
 interface AuthContextType {
-  user: User | null;
+  user: UserContexto | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (
-    email: string,
-    password: string,
-    name: string,
-    company: string,
-  ) => Promise<void>;
+  signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   error: string | null;
   clearError: () => void;
@@ -61,7 +54,7 @@ const getErrorMessage = (errorCode: string): string => {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserContexto | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
@@ -88,29 +81,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
         try {
           if (firebaseUser) {
-            // Verificar se documento do usuário existe, se não criar
-            const userDocRef = doc(db, "usuarios", firebaseUser.uid);
-            const userDocSnap = await getDoc(userDocRef);
+            // Buscar dados globais do usuário
+            const usuarioGlobal = await obterUsuarioGlobal(firebaseUser.uid);
 
-            if (!userDocSnap.exists()) {
-              // Criar documento do usuário se não existir
-              await setDoc(userDocRef, {
+            if (usuarioGlobal) {
+              // Usuário logado e documento global existe
+              if (!usuarioGlobal.ativo) {
+                console.log("[AuthContext] Usuário desativado/bloqueado");
+                await signOut(auth);
+                setUser(null);
+              } else {
+                // Configurar usuário no contexto
+                setUser({
+                  id: firebaseUser.uid,
+                  email: usuarioGlobal.email,
+                  name: usuarioGlobal.name,
+                  role: usuarioGlobal.role,
+                  empresaId: usuarioGlobal.empresaId,
+                });
+              }
+            } else {
+              // Se não tem documento global, manter logado mas marcar como pendente
+              console.log(
+                "[AuthContext] Documento global não encontrado - pendente de criação",
+              );
+              // Manter usuário logado mas sinalar que precisa criar perfil
+              setUser({
                 id: firebaseUser.uid,
                 email: firebaseUser.email || "",
                 name: firebaseUser.displayName || "Usuário",
-                createdAt: serverTimestamp(),
-                // empresaId será adicionado quando criar empresa
+                necessarioCriarPerfil: true,
               });
-              console.log("[AuthContext] Documento de usuário criado");
             }
 
-            // Usuário logado
-            setUser({
-              id: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              name: firebaseUser.displayName || "Usuário",
-              company: "",
-            });
             // Se estava em login, marca como completo
             if (isLoginInProgress) {
               console.log(
@@ -172,12 +175,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const signup = async (
-    email: string,
-    password: string,
-    name: string,
-    company: string,
-  ) => {
+  const signup = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     setError(null);
 
@@ -188,15 +186,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         password,
       );
 
-      // Criar documento do usuário no Firestore
-      const userDocRef = doc(db, "usuarios", result.user.uid);
-      await setDoc(userDocRef, {
-        id: result.user.uid,
-        email: email,
-        name: name || "Usuário",
-        createdAt: serverTimestamp(),
-        // empresaId será adicionado quando criar empresa
-      });
+      // Criar documento global do usuário com role "users" (proprietário)
+      await criarUsuarioGlobal(
+        result.user.uid,
+        email,
+        name,
+        "users", // Nova role para proprietários
+      );
 
       console.log("[AuthContext] Usuário registrado com sucesso");
     } catch (err) {

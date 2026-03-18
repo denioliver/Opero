@@ -5,9 +5,10 @@ import { useCompany } from "../contexts/CompanyContext";
 import AuthStack from "./AuthStack";
 import CompanyRegisterStack from "./CompanyRegisterStack";
 import AppStack from "./AppStack";
+import AdminStack from "./AdminStack";
 
 export default function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const { company, isLoadingCompany } = useCompany();
 
   if (isLoading || isLoadingCompany) {
@@ -23,6 +24,17 @@ export default function RootNavigator() {
     return <AuthStack />;
   }
 
+  // Se é admin, exibe AdminStack
+  if (user?.role === "admin") {
+    return <AdminStack />;
+  }
+
+  // Se usuário está logado mas não tem perfil global criado ainda, vai para criar empresa/perfil
+  if (user?.necessarioCriarPerfil) {
+    return <CompanyRegisterStack />;
+  }
+
+  // Se é usuário comum (proprietário) e não tem empresa
   if (!company) {
     return <CompanyRegisterStack />;
   }

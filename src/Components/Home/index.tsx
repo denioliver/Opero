@@ -18,6 +18,8 @@ type RootStackParamList = {
   ProductsList: undefined;
   OrdersList: undefined;
   InvoicesList: undefined;
+  Acessos: undefined;
+  Auditoria: undefined;
 };
 
 declare global {
@@ -72,6 +74,22 @@ export const Home: React.FC = () => {
       label: "Notas Fiscais",
       onPress: () =>
         navigation.navigate("InvoicesList" as keyof RootStackParamList),
+    },
+  ];
+
+  const adminMenuItems = [
+    {
+      id: "acessos",
+      icon: "🔑",
+      label: "Acessos",
+      onPress: () => navigation.navigate("Acessos" as keyof RootStackParamList),
+    },
+    {
+      id: "auditoria",
+      icon: "📊",
+      label: "Histórico",
+      onPress: () =>
+        navigation.navigate("Auditoria" as keyof RootStackParamList),
     },
   ];
 
@@ -140,6 +158,23 @@ export const Home: React.FC = () => {
           <Text style={styles.menuSectionTitle}>Gerenciamento</Text>
           <View style={styles.menuGrid}>
             {menuItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.menuItem}
+                onPress={item.onPress}
+              >
+                <Text style={styles.menuIcon}>{item.icon}</Text>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Admin Menu */}
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>Administração</Text>
+          <View style={styles.menuGrid}>
+            {adminMenuItems.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}

@@ -1,18 +1,28 @@
-import { BaseEntity } from '../base';
+import { Timestamp } from 'firebase/firestore';
 
-export interface Cliente extends BaseEntity {
+export interface Cliente {
+  id: string;
+  empresaId: string;
+  
   nome: string;
-  telefone?: string;
+  tipo: 'pf' | 'pj';
+  documento: string;
   email?: string;
-  documento: string; // CPF ou CNPJ
-  tipoDocumento: 'cpf' | 'cnpj';
+  telefone?: string;
+  
   endereco?: {
     rua: string;
     numero: string;
-    complemento?: string;
     cidade: string;
     estado: string;
     cep: string;
   };
+  
   observacoes?: string;
+  
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt?: Timestamp;
+  
+  status: 'ativo' | 'inativo';
 }

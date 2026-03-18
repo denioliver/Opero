@@ -1,150 +1,316 @@
-import React, { createContext, useContext, useState } from "react";
-import { Client } from "../types";
-import { useCompany } from "./CompanyContext";
-import { db } from "../config/firebase";
+/**
+ * Clientes Context - Gerenciamento de clientes da empresa
+ */
+
+import React, { createContext, useContext, useState, useCallback } from "react";
+import { Cliente } from "../domains/clientes/types";
 import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-} from "firebase/firestore";
+  createClient,
+  getClients,
+  getClient,
+  updateClient,
+  deleteClient,
+  checkDocumentExists,
+} from "../services/firebase/clientService";
+import { useCompany } from "./CompanyContext";
+import { useAuth } from "./AuthContext";
 
 interface ClientsContextType {
-  clients: Client[];
-  isLoadingClients: boolean;
-  clientsError: string | null;
-  loadClients: () => Promise<void>;
-  addClient: (
-    client: Omit<Client, "clientId" | "createdAt" | "updatedAt">,
+  // Estado
+  clientes: Cliente[];
+  clienteSelecionado: Cliente | null;
+  isLoading: boolean;
+  error: string | null;
+
+  // Ações
+  loadClientes: () => Promise<void>;
+  createCliente: (
+    clientData: Omit<
+      Cliente,
+      "id" | "empresaId" | "createdAt" | "createdBy" | "updatedAt" | "status"
+    >,
+  ) => Promise<string>;
+  selectCliente: (clienteId: string) => Promise<void>;
+  updateCliente: (
+    clienteId: string,
+    updates: Partial<
+      Omit<Cliente, "id" | "empresaId" | "createdAt" | "createdBy" | "status">
+    >,
   ) => Promise<void>;
-  updateClient: (clientId: string, updates: Partial<Client>) => Promise<void>;
-  deleteClient: (clientId: string) => Promise<void>;
-  clearClientsError: () => void;
+  deleteCliente: (clienteId: string) => Promise<void>;
+  verificarDocumento: (
+    documento: string,
+    excludeClienteId?: string,
+  ) => Promise<boolean>;
+  clearError: () => void;
+  deselectCliente: () => void;
 }
 
 const ClientsContext = createContext<ClientsContextType | undefined>(undefined);
 
 export function ClientsProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoadingClients, setIsLoadingClients] = useState(false);
-  const [clientsError, setClientsError] = useState<string | null>(null);
+  const { user } = useAuth();
 
-  const loadClients = async () => {
-    if (!company?.companyId) return;
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Carrega todos os clientes da empresa
+   */
+  const loadClientes = useCallback(async () => {
+    if (!company?.companyId) {
+      console.warn("[ClientsContext] Empresa não carregada");
+      return;
+    }
 
     try {
-      setIsLoadingClients(true);
-      setClientsError(null);
+      console.log("[ClientsContext] Carregando clientes...");
+      setIsLoading(true);
+      setError(null);
 
-      const q = query(
-        collection(db, "clients"),
-        where("companyId", "==", company.companyId),
+      const clientesList = await getClients(
+        company.companyId,
+        undefined,
+        "nome",
       );
+      setClientes(clientesList);
 
-      const querySnapshot = await getDocs(q);
-      const clientsList: Client[] = [];
-
-      querySnapshot.forEach((doc) => {
-        clientsList.push({
-          ...doc.data(),
-          clientId: doc.id,
-        } as Client);
-      });
-
-      setClients(clientsList);
-    } catch (error) {
-      console.error("[ClientsContext] Erro ao carregar clientes:", error);
-      setClientsError("Erro ao carregar clientes");
+      console.log("[ClientsContext] Clientes carregados:", clientesList.length);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar clientes";
+      console.error("[ClientsContext] Erro:", message);
+      setError(message);
+      throw err;
     } finally {
-      setIsLoadingClients(false);
+      setIsLoading(false);
     }
-  };
+  }, [company?.companyId]);
 
-  const addClient = async (
-    client: Omit<Client, "clientId" | "createdAt" | "updatedAt">,
-  ) => {
-    if (!company?.companyId) throw new Error("Empresa não encontrada");
+  /**
+   * Cria um novo cliente
+   */
+  const createCliente = useCallback(
+    async (
+      clientData: Omit<
+        Cliente,
+        "id" | "empresaId" | "createdAt" | "createdBy" | "updatedAt" | "status"
+      >,
+    ): Promise<string> => {
+      if (!company?.companyId || !user?.id) {
+        throw new Error("Empresa ou usuário não disponível");
+      }
 
-    try {
-      const docRef = await addDoc(collection(db, "clients"), {
-        ...client,
-        companyId: company.companyId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      try {
+        console.log("[ClientsContext] Criando cliente...");
+        setIsLoading(true);
+        setError(null);
 
-      setClients((prev) => [
-        ...prev,
-        {
-          ...client,
-          clientId: docRef.id,
-          companyId: company.companyId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ]);
-    } catch (error) {
-      console.error("[ClientsContext] Erro ao adicionar cliente:", error);
-      throw error;
-    }
-  };
+        // Verifica se documento já existe
+        const exists = await checkDocumentExists(
+          company.companyId,
+          clientData.documento,
+        );
+        if (exists) {
+          throw new Error("Documento (CPF/CNPJ) já cadastrado nesta empresa");
+        }
 
-  const updateClient = async (clientId: string, updates: Partial<Client>) => {
-    try {
-      await updateDoc(doc(db, "clients", clientId), {
-        ...updates,
-        updatedAt: serverTimestamp(),
-      });
+        const clienteId = await createClient(
+          company.companyId,
+          clientData,
+          user.id,
+        );
 
-      setClients((prev) =>
-        prev.map((c) =>
-          c.clientId === clientId
-            ? { ...c, ...updates, updatedAt: new Date() }
-            : c,
-        ),
+        // Recarrega lista
+        await loadClientes();
+
+        console.log("[ClientsContext] Cliente criado:", clienteId);
+        return clienteId;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Erro ao criar cliente";
+        console.error("[ClientsContext] Erro:", message);
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [company?.companyId, user?.id, loadClientes],
+  );
+
+  /**
+   * Seleciona um cliente para visualizar/editar
+   */
+  const selectCliente = useCallback(
+    async (clienteId: string) => {
+      if (!company?.companyId) {
+        throw new Error("Empresa não disponível");
+      }
+
+      try {
+        console.log("[ClientsContext] Selecionando cliente:", clienteId);
+        setIsLoading(true);
+        setError(null);
+
+        const cliente = await getClient(company.companyId, clienteId);
+        if (!cliente) {
+          throw new Error("Cliente não encontrado");
+        }
+
+        setClienteSelecionado(cliente);
+        console.log("[ClientsContext] Cliente selecionado");
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Erro ao selecionar cliente";
+        console.error("[ClientsContext] Erro:", message);
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [company?.companyId],
+  );
+
+  /**
+   * Atualiza um cliente
+   */
+  const updateCliente = useCallback(
+    async (
+      clienteId: string,
+      updates: Partial<
+        Omit<Cliente, "id" | "empresaId" | "createdAt" | "createdBy" | "status">
+      >,
+    ) => {
+      if (!company?.companyId || !user?.id) {
+        throw new Error("Empresa ou usuário não disponível");
+      }
+
+      try {
+        console.log("[ClientsContext] Atualizando cliente:", clienteId);
+        setIsLoading(true);
+        setError(null);
+
+        // Se atualizando documento, verifica se já existe
+        if (updates.documento) {
+          const exists = await checkDocumentExists(
+            company.companyId,
+            updates.documento,
+            clienteId,
+          );
+          if (exists) {
+            throw new Error(
+              "Documento (CPF/CNPJ) já cadastrado por outro cliente",
+            );
+          }
+        }
+
+        await updateClient(company.companyId, clienteId, updates, user.id);
+
+        // Recarrega lista
+        await loadClientes();
+
+        console.log("[ClientsContext] Cliente atualizado");
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Erro ao atualizar cliente";
+        console.error("[ClientsContext] Erro:", message);
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [company?.companyId, user?.id, loadClientes],
+  );
+
+  /**
+   * Deleta um cliente
+   */
+  const deleteCliente = useCallback(
+    async (clienteId: string) => {
+      if (!company?.companyId) {
+        throw new Error("Empresa não disponível");
+      }
+
+      try {
+        console.log("[ClientsContext] Deletando cliente:", clienteId);
+        setIsLoading(true);
+        setError(null);
+
+        await deleteClient(company.companyId, clienteId);
+
+        // Remove da lista local
+        setClientes((prev) => prev.filter((c) => c.id !== clienteId));
+
+        // Limpa seleção se era o cliente deletado
+        if (clienteSelecionado?.id === clienteId) {
+          setClienteSelecionado(null);
+        }
+
+        console.log("[ClientsContext] Cliente deletado");
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Erro ao deletar cliente";
+        console.error("[ClientsContext] Erro:", message);
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [company?.companyId, clienteSelecionado?.id],
+  );
+
+  /**
+   * Valida documento
+   */
+  const verificarDocumento = useCallback(
+    (documento: string, excludeClienteId?: string) => {
+      if (!company?.companyId) {
+        throw new Error("Empresa não disponível");
+      }
+      return checkDocumentExists(
+        company.companyId,
+        documento,
+        excludeClienteId,
       );
-    } catch (error) {
-      console.error("[ClientsContext] Erro ao atualizar cliente:", error);
-      throw error;
-    }
-  };
+    },
+    [company?.companyId],
+  );
 
-  const deleteClient = async (clientId: string) => {
-    try {
-      await deleteDoc(doc(db, "clients", clientId));
-      setClients((prev) => prev.filter((c) => c.clientId !== clientId));
-    } catch (error) {
-      console.error("[ClientsContext] Erro ao deletar cliente:", error);
-      throw error;
-    }
-  };
+  const clearError = () => setError(null);
+  const deselectCliente = () => setClienteSelecionado(null);
 
-  const clearClientsError = () => setClientsError(null);
+  const value: ClientsContextType = {
+    clientes,
+    clienteSelecionado,
+    isLoading,
+    error,
+    loadClientes,
+    createCliente,
+    selectCliente,
+    updateCliente,
+    deleteCliente,
+    verificarDocumento,
+    clearError,
+    deselectCliente,
+  };
 
   return (
-    <ClientsContext.Provider
-      value={{
-        clients,
-        isLoadingClients,
-        clientsError,
-        loadClients,
-        addClient,
-        updateClient,
-        deleteClient,
-        clearClientsError,
-      }}
-    >
-      {children}
-    </ClientsContext.Provider>
+    <ClientsContext.Provider value={value}>{children}</ClientsContext.Provider>
   );
 }
 
+/**
+ * Hook para usar o contexto de clientes
+ */
 export function useClients(): ClientsContextType {
   const context = useContext(ClientsContext);
   if (!context) {

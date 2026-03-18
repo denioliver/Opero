@@ -1,0 +1,152 @@
+/**
+ * Regras de Firestore para Opero
+ * 
+ * Estrutura do banco de dados:
+ * 
+ * /usuarios/{userId}
+ *   - Usuários globais (admin e proprietários)
+ *   - role: 'admin' | 'users'
+ *   - Apenas aquele usuário pode ler seus dados
+ *   - Admins podem ler todos
+ * 
+ * /empresas/{empresaId}
+ *   - Dados da empresa
+ *   - Apenas proprietário pode escrever
+ *   - Apenas proprietário + funcionários podem ler
+ * 
+ * /empresas/{empresaId}/funcionarios/{funcionarioId}
+ *   - Funcionários da empresa
+ *   - Apenas proprietário pode criar/editar/deletar
+ *   - Cada funcionário pode ler seus próprios dados
+ * 
+ * /empresas/{empresaId}/clientes/{clienteId}
+ *   - Clientes da empresa
+ *   - Apenas proprietário + funcionários podem ler/escrever
+ * 
+ * /empresas/{empresaId}/produtos/{produtoId}
+ *   - Produtos da empresa
+ *   - Apenas proprietário + funcionários podem ler/escrever
+ * 
+ * /empresas/{empresaId}/ordens/{ordemId}
+ *   - Ordens de serviço
+ *   - Apenas proprietário + funcionários podem ler/escrever
+ * 
+ * /empresas/{empresaId}/auditoria/{auditId}
+ *   - Log de auditoria
+ *   - Leitura: proprietário + funcionários
+ *   - Escrita: apenas backend (via Firebase Cloud Functions)
+ */
+
+// Copie este conteúdo para as Regras do Firestore no Console Firebase
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==================== USUÁRIOS GLOBAIS ====================
+    match /usuarios/{userId} {
+      // Usuário pode ler seus próprios dados
+      allow read: if request.auth.uid == userId;
+      
+      // Admins podem ler todos os usuários
+      allow read: if isAdmin(userId);
+      
+      // Criação: apenas durante signup (backend via Cloud Function)
+      allow create: if request.auth.uid == userId;
+      
+      // Atualização: apenas o proprietário pode atualizar seus dados
+      allow update: if request.auth.uid == userId;
+      
+      // Função auxiliar: verificar se é admin
+      function isAdmin(uid) {
+        return get(/databases/$(database)/documents/usuarios/$(uid)).data.role == 'admin';
+      }
+    }
+    
+    // ==================== EMPRESAS ====================
+    match /empresas/{empresaId} {
+      // Proprietário pode ler sua empresa
+      allow read: if request.auth.uid == resource.data.userId;
+      
+      // Admins podem ler todas as empresas
+      allow read: if isAdmin();
+      
+      // Funcionário pode ler a empresa dele
+      allow read: if funcionarioPertenteAempresa(empresaId);
+      
+      // Apenas proprietário pode criar/atualizar empresa
+      allow write: if request.auth.uid == resource.data.userId;
+      
+      // Admin pode deletar empresa
+      allow delete: if isAdmin();
+      
+      // ==================== FUNCIONÁRIOS ====================
+      match /funcionarios/{funcionarioId} {
+        // Proprietário pode ler todos os funcionários
+        allow read: if request.auth.uid == get(/databases/$(database)/documents/empresas/$(empresaId)).data.userId;
+        
+        // Funcionário pode ler seus próprios dados
+        allow read: if funcionarioId == get(/databases/$(database)/documents/empresas/$(empresaId)/funcionarios/$(funcionarioId)).data.id;
+        
+        // Apenas proprietário pode criar/atualizar/deletar funcionários
+        allow create, update, delete: if request.auth.uid == get(/databases/$(database)/documents/empresas/$(empresaId)).data.userId;
+      }
+      
+      // ==================== CLIENTES ====================
+      match /clientes/{clienteId} {
+        // Proprietário pode ler/escrever clientes
+        allow read, write: if request.auth.uid == get(/databases/$(database)/documents/empresas/$(empresaId)).data.userId;
+        
+        // Funcionário pode ler/escrever clientes
+        allow read, write: if funcionarioPertenteAempresa(empresaId);
+      }
+      
+      // ==================== PRODUTOS ====================
+      match /produtos/{produtoId} {
+        // Proprietário pode ler/escrever
+        allow read, write: if request.auth.uid == get(/databases/$(database)/documents/empresas/$(empresaId)).data.userId;
+        
+        // Funcionário pode ler/escrever
+        allow read, write: if funcionarioPertenteAempresa(empresaId);
+      }
+      
+      // ==================== ORDENS ====================
+      match /ordens/{ordemId} {
+        // Proprietário pode ler/escrever
+        allow read, write: if request.auth.uid == get(/databases/$(database)/documents/empresas/$(empresaId)).data.userId;
+        
+        // Funcionário pode ler/escrever
+        allow read, write: if funcionarioPertenteAempresa(empresaId);
+      }
+      
+      // ==================== AUDITORIA ====================
+      match /auditoria/{auditId} {
+        // Proprietário pode ler
+        allow read: if request.auth.uid == get(/databases/$(database)/documents/empresas/$(empresaId)).data.userId;
+        
+        // Funcionário pode ler
+        allow read: if funcionarioPertenteAempresa(empresaId);
+        
+        // Apenas backend (via Cloud Function) pode escrever
+        allow write: if false;
+      }
+    }
+    
+    // ==================== FUNÇÕES AUXILIARES ====================
+    
+    // Verifica se usuário é admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Verifica se funcionário pertence à empresa
+    function funcionarioPertenteAempresa(empresaId) {
+      return exists(/databases/$(database)/documents/empresas/$(empresaId)/funcionarios/$(request.auth.uid));
+    }
+    
+    // Fallback: nega tudo que não foi definido
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

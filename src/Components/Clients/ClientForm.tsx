@@ -1,3 +1,8 @@
+/**
+ * Formulário de Cliente
+ * Para criar ou editar clientes da empresa
+ */
+
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -11,97 +16,135 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Cliente } from "../../domains/clientes/types";
 import { useClients } from "../../contexts/ClientsContext";
-import { Client } from "../../types";
 
 interface ClientFormProps {
-  client?: Client;
+  cliente?: Cliente;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
-  const { addClient, updateClient, isLoadingClients } = useClients();
+export function ClientForm({ cliente, onSuccess, onCancel }: ClientFormProps) {
+  const { createCliente, updateCliente, verificarDocumento, isLoading } =
+    useClients();
   const [formData, setFormData] = useState({
-    name: "",
-    cpfCnpj: "",
-    phone: "",
+    nome: "",
+    tipo: "pf" as "pf" | "pj",
+    documento: "",
+    telefone: "",
     email: "",
-    street: "",
-    number: "",
-    complement: "",
-    city: "",
-    state: "",
-    zipCode: "",
+    rua: "",
+    numero: "",
+    complemento: "",
+    cidade: "",
+    estado: "",
+    cep: "",
+    observacoes: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [checkingDocument, setCheckingDocument] = useState(false);
 
   useEffect(() => {
-    if (client) {
+    if (cliente) {
       setFormData({
-        name: client.name,
-        cpfCnpj: client.cpfCnpj,
-        phone: client.phone,
-        email: client.email || "",
-        street: client.address.street,
-        number: client.address.number,
-        complement: client.address.complement || "",
-        city: client.city,
-        state: client.state,
-        zipCode: client.zipCode,
+        nome: cliente.nome,
+        tipo: cliente.tipo,
+        documento: cliente.documento,
+        telefone: cliente.telefone || "",
+        email: cliente.email || "",
+        rua: cliente.endereco?.rua || "",
+        numero: cliente.endereco?.numero || "",
+        complemento: cliente.endereco?.complemento || "",
+        cidade: cliente.endereco?.cidade || "",
+        estado: cliente.endereco?.estado || "",
+        cep: cliente.endereco?.cep || "",
+        observacoes: cliente.observacoes || "",
       });
     }
-  }, [client]);
+  }, [cliente]);
 
-  const validateForm = (): boolean => {
+  const validateDocument = async (documento: string): Promise<boolean> => {
+    // Não validar se está editando e mantendo o mesmo documento
+    if (cliente && cliente.documento === documento) {
+      return true;
+    }
+
+    setCheckingDocument(true);
+    try {
+      const exists = await verificarDocumento(
+        documento,
+        cliente?.id, // Exclui o cliente atual se estiver editando
+      );
+      setCheckingDocument(false);
+      return !exists;
+    } catch (error) {
+      setCheckingDocument(false);
+      return false;
+    }
+  };
+
+  const validateForm = async (): Promise<boolean> => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) newErrors.name = "Nome é obrigatório";
-    if (!formData.cpfCnpj.trim()) newErrors.cpfCnpj = "CPF/CNPJ é obrigatório";
-    if (!formData.phone.trim()) newErrors.phone = "Telefone é obrigatório";
-    if (!formData.street.trim()) newErrors.street = "Rua é obrigatória";
-    if (!formData.number.trim()) newErrors.number = "Número é obrigatório";
-    if (!formData.city.trim()) newErrors.city = "Cidade é obrigatória";
-    if (!formData.state.trim() || formData.state.length !== 2) {
-      newErrors.state = "UF com 2 caracteres";
+    if (!formData.nome.trim()) newErrors.nome = "Nome é obrigatório";
+    if (!formData.documento.trim())
+      newErrors.documento = "Documento é obrigatório";
+    if (!formData.telefone.trim())
+      newErrors.telefone = "Telefone é obrigatório";
+    if (!formData.rua.trim()) newErrors.rua = "Rua é obrigatória";
+    if (!formData.numero.trim()) newErrors.numero = "Número é obrigatório";
+    if (!formData.cidade.trim()) newErrors.cidade = "Cidade é obrigatória";
+    if (!formData.estado.trim() || formData.estado.length !== 2) {
+      newErrors.estado = "Estado com 2 caracteres";
     }
-    if (!formData.zipCode.trim()) newErrors.zipCode = "CEP é obrigatório";
+    if (!formData.cep.trim()) newErrors.cep = "CEP é obrigatório";
+
+    // Validar unicidade do documento
+    if (!newErrors.documento) {
+      const isValid = await validateDocument(formData.documento);
+      if (!isValid) {
+        newErrors.documento = "Este documento já está cadastrado";
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      Alert.alert("Validação", "Preencha todos os campos obrigatórios");
+    const isValid = await validateForm();
+    if (!isValid) {
+      Alert.alert("Validação", "Corrija os erros antes de continuar");
       return;
     }
 
     try {
-      const clientData = {
-        name: formData.name.trim(),
-        cpfCnpj: formData.cpfCnpj.trim(),
-        phone: formData.phone.trim(),
+      const clienteData = {
+        nome: formData.nome.trim(),
+        tipo: formData.tipo,
+        documento: formData.documento.trim(),
+        telefone: formData.telefone.trim(),
         email: formData.email.trim() || undefined,
-        address: {
-          street: formData.street.trim(),
-          number: formData.number.trim(),
-          complement: formData.complement.trim() || undefined,
+        endereco: {
+          rua: formData.rua.trim(),
+          numero: formData.numero.trim(),
+          complemento: formData.complemento.trim() || undefined,
+          cidade: formData.cidade.trim(),
+          estado: formData.estado.trim().toUpperCase(),
+          cep: formData.cep.trim(),
         },
-        city: formData.city.trim(),
-        state: formData.state.trim().toUpperCase(),
-        zipCode: formData.zipCode.trim(),
-        active: true,
+        observacoes: formData.observacoes.trim() || undefined,
       };
 
-      if (client) {
-        await updateClient(client.clientId, clientData);
+      if (cliente) {
+        await updateCliente(cliente.id, clienteData);
         Alert.alert("Sucesso", "Cliente atualizado com sucesso!", [
           { text: "OK", onPress: onSuccess },
         ]);
       } else {
-        await addClient(clientData);
+        await createCliente(clienteData);
         Alert.alert("Sucesso", "Cliente cadastrado com sucesso!", [
           { text: "OK", onPress: onSuccess },
         ]);
@@ -131,73 +174,131 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
       >
         <View style={styles.header}>
           <Text style={styles.title}>
-            {client ? "Editar Cliente" : "Novo Cliente"}
+            {cliente ? "Editar Cliente" : "Novo Cliente"}
           </Text>
         </View>
 
-        {/* Dados Básicos */}
+        {/* Informações Básicas */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informações do Cliente</Text>
 
           <View style={styles.inputGroup}>
-            <Label text="Nome *" />
+            <Label text="Nome Completo *" />
             <TextInput
               style={[
                 styles.input,
-                errors.name ? styles.inputError : undefined,
+                errors.nome ? styles.inputError : undefined,
               ]}
-              placeholder="Nome completo"
-              value={formData.name}
-              onChangeText={(text) => updateField("name", text)}
-              editable={!isLoadingClients}
+              placeholder="Ex: João Silva"
+              value={formData.nome}
+              onChangeText={(text) => updateField("nome", text)}
+              editable={!isLoading && !checkingDocument}
             />
-            {errors.name && <ErrorText text={errors.name} />}
+            {errors.nome && <ErrorText text={errors.nome} />}
+          </View>
+
+          {/* Tipo de Documento e Documento */}
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+              <Label text="Tipo de Documento *" />
+              <View style={styles.tipoDocumentoContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.tipoDocumentoButton,
+                    formData.tipo === "pf" && styles.tipoDocumentoButtonActive,
+                  ]}
+                  onPress={() => updateField("tipo", "pf")}
+                  disabled={isLoading || checkingDocument}
+                >
+                  <Text
+                    style={[
+                      styles.tipoDocumentoText,
+                      formData.tipo === "pf" && styles.tipoDocumentoTextActive,
+                    ]}
+                  >
+                    PF
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.tipoDocumentoButton,
+                    formData.tipo === "pj" && styles.tipoDocumentoButtonActive,
+                  ]}
+                  onPress={() => updateField("tipo", "pj")}
+                  disabled={isLoading || checkingDocument}
+                >
+                  <Text
+                    style={[
+                      styles.tipoDocumentoText,
+                      formData.tipo === "pj" && styles.tipoDocumentoTextActive,
+                    ]}
+                  >
+                    PJ
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={[styles.inputGroup, { flex: 1.5 }]}>
+              <Label text="CPF/CNPJ *" />
+              <View style={styles.documentoInputContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.documentoInput,
+                    errors.documento ? styles.inputError : undefined,
+                  ]}
+                  placeholder={
+                    formData.tipo === "pf"
+                      ? "000.000.000-00"
+                      : "00.000.000/0000-00"
+                  }
+                  value={formData.documento}
+                  onChangeText={(text) => updateField("documento", text)}
+                  editable={!isLoading && !checkingDocument}
+                  keyboardType="numeric"
+                />
+                {checkingDocument && (
+                  <ActivityIndicator
+                    size="small"
+                    color="#2563EB"
+                    style={styles.documentoCheckIcon}
+                  />
+                )}
+              </View>
+              {errors.documento && <ErrorText text={errors.documento} />}
+            </View>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Label text="CPF/CNPJ *" />
-              <TextInput
-                style={[
-                  styles.input,
-                  errors.cpfCnpj ? styles.inputError : undefined,
-                ]}
-                placeholder="000.000.000-00"
-                value={formData.cpfCnpj}
-                onChangeText={(text) => updateField("cpfCnpj", text)}
-                editable={!isLoadingClients}
-                keyboardType="numeric"
-              />
-              {errors.cpfCnpj && <ErrorText text={errors.cpfCnpj} />}
-            </View>
-
-            <View style={[styles.inputGroup, { flex: 1 }]}>
               <Label text="Telefone *" />
               <TextInput
                 style={[
                   styles.input,
-                  errors.phone ? styles.inputError : undefined,
+                  errors.telefone ? styles.inputError : undefined,
                 ]}
                 placeholder="(11) 99999-9999"
-                value={formData.phone}
-                onChangeText={(text) => updateField("phone", text)}
-                editable={!isLoadingClients}
+                value={formData.telefone}
+                onChangeText={(text) => updateField("telefone", text)}
+                editable={!isLoading && !checkingDocument}
                 keyboardType="phone-pad"
               />
-              {errors.phone && <ErrorText text={errors.phone} />}
+              {errors.telefone && <ErrorText text={errors.telefone} />}
             </View>
-          </View>
 
-          <View style={styles.inputGroup}>
-            <Label text="E-mail" />
-            <TextInput
-              style={styles.input}
-              placeholder="cliente@email.com"
-              value={formData.email}
-              onChangeText={(text) => updateField("email", text)}
-              editable={!isLoadingClients}
-              keyboardType="email-address"
-            />
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Label text="E-mail" />
+              <TextInput
+                style={styles.input}
+                placeholder="cliente@email.com"
+                value={formData.email}
+                onChangeText={(text) => updateField("email", text)}
+                editable={!isLoading && !checkingDocument}
+                keyboardType="email-address"
+              />
+            </View>
           </View>
         </View>
 
@@ -208,16 +309,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           <View style={styles.inputGroup}>
             <Label text="Rua *" />
             <TextInput
-              style={[
-                styles.input,
-                errors.street ? styles.inputError : undefined,
-              ]}
-              placeholder="Rua do cliente"
-              value={formData.street}
-              onChangeText={(text) => updateField("street", text)}
-              editable={!isLoadingClients}
+              style={[styles.input, errors.rua ? styles.inputError : undefined]}
+              placeholder="Ex: Rua da Paz"
+              value={formData.rua}
+              onChangeText={(text) => updateField("rua", text)}
+              editable={!isLoading && !checkingDocument}
             />
-            {errors.street && <ErrorText text={errors.street} />}
+            {errors.rua && <ErrorText text={errors.rua} />}
           </View>
 
           <View style={styles.row}>
@@ -226,15 +324,15 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               <TextInput
                 style={[
                   styles.input,
-                  errors.number ? styles.inputError : undefined,
+                  errors.numero ? styles.inputError : undefined,
                 ]}
                 placeholder="123"
-                value={formData.number}
-                onChangeText={(text) => updateField("number", text)}
-                editable={!isLoadingClients}
+                value={formData.numero}
+                onChangeText={(text) => updateField("numero", text)}
+                editable={!isLoading && !checkingDocument}
                 keyboardType="numeric"
               />
-              {errors.number && <ErrorText text={errors.number} />}
+              {errors.numero && <ErrorText text={errors.numero} />}
             </View>
 
             <View style={[styles.inputGroup, { flex: 1 }]}>
@@ -242,9 +340,9 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               <TextInput
                 style={styles.input}
                 placeholder="Apt 101"
-                value={formData.complement}
-                onChangeText={(text) => updateField("complement", text)}
-                editable={!isLoadingClients}
+                value={formData.complemento}
+                onChangeText={(text) => updateField("complemento", text)}
+                editable={!isLoading && !checkingDocument}
               />
             </View>
           </View>
@@ -255,32 +353,32 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               <TextInput
                 style={[
                   styles.input,
-                  errors.city ? styles.inputError : undefined,
+                  errors.cidade ? styles.inputError : undefined,
                 ]}
                 placeholder="São Paulo"
-                value={formData.city}
-                onChangeText={(text) => updateField("city", text)}
-                editable={!isLoadingClients}
+                value={formData.cidade}
+                onChangeText={(text) => updateField("cidade", text)}
+                editable={!isLoading && !checkingDocument}
               />
-              {errors.city && <ErrorText text={errors.city} />}
+              {errors.cidade && <ErrorText text={errors.cidade} />}
             </View>
 
             <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Label text="UF *" />
+              <Label text="Estado *" />
               <TextInput
                 style={[
                   styles.input,
-                  errors.state ? styles.inputError : undefined,
+                  errors.estado ? styles.inputError : undefined,
                 ]}
                 placeholder="SP"
-                value={formData.state}
+                value={formData.estado}
                 onChangeText={(text) =>
-                  updateField("state", text.toUpperCase())
+                  updateField("estado", text.toUpperCase())
                 }
-                editable={!isLoadingClients}
+                editable={!isLoading && !checkingDocument}
                 maxLength={2}
               />
-              {errors.state && <ErrorText text={errors.state} />}
+              {errors.estado && <ErrorText text={errors.estado} />}
             </View>
 
             <View style={[styles.inputGroup, { flex: 1 }]}>
@@ -288,16 +386,35 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               <TextInput
                 style={[
                   styles.input,
-                  errors.zipCode ? styles.inputError : undefined,
+                  errors.cep ? styles.inputError : undefined,
                 ]}
                 placeholder="00000-000"
-                value={formData.zipCode}
-                onChangeText={(text) => updateField("zipCode", text)}
-                editable={!isLoadingClients}
+                value={formData.cep}
+                onChangeText={(text) => updateField("cep", text)}
+                editable={!isLoading && !checkingDocument}
                 keyboardType="numeric"
               />
-              {errors.zipCode && <ErrorText text={errors.zipCode} />}
+              {errors.cep && <ErrorText text={errors.cep} />}
             </View>
+          </View>
+        </View>
+
+        {/* Observações */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Observações</Text>
+
+          <View style={styles.inputGroup}>
+            <Label text="Notas sobre o cliente" />
+            <TextInput
+              style={[styles.input, styles.textAreaInput]}
+              placeholder="Informações adicionais..."
+              value={formData.observacoes}
+              onChangeText={(text) => updateField("observacoes", text)}
+              editable={!isLoading && !checkingDocument}
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
           </View>
         </View>
 
@@ -306,7 +423,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           <TouchableOpacity
             style={[styles.button, styles.cancelButton]}
             onPress={onCancel}
-            disabled={isLoadingClients}
+            disabled={isLoading || checkingDocument}
           >
             <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
@@ -315,16 +432,16 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             style={[
               styles.button,
               styles.submitButton,
-              isLoadingClients ? styles.submitButtonDisabled : undefined,
+              (isLoading || checkingDocument) && styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={isLoadingClients}
+            disabled={isLoading || checkingDocument}
           >
-            {isLoadingClients ? (
+            {isLoading || checkingDocument ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.submitButtonText}>
-                {client ? "Atualizar" : "Criar"}
+                {cliente ? "Atualizar" : "Criar"}
               </Text>
             )}
           </TouchableOpacity>
@@ -401,6 +518,47 @@ const styles = StyleSheet.create({
     color: "#EF4444",
     fontSize: 12,
     marginTop: 4,
+  },
+  tipoDocumentoContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  tipoDocumentoButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tipoDocumentoButtonActive: {
+    backgroundColor: "#DBEAFE",
+    borderColor: "#2563EB",
+  },
+  tipoDocumentoText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  tipoDocumentoTextActive: {
+    color: "#2563EB",
+  },
+  documentoInputContainer: {
+    position: "relative",
+  },
+  documentoInput: {
+    paddingRight: 40,
+  },
+  documentoCheckIcon: {
+    position: "absolute",
+    right: 12,
+    top: 12,
+  },
+  textAreaInput: {
+    paddingTop: 12,
   },
   buttonGroup: {
     flexDirection: "row",

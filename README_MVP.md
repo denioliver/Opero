@@ -9,12 +9,14 @@ Este documento descreve o MVP completo do Opero, um sistema mobile para gestão 
 ## ✅ Funcionalidades Implementadas
 
 ### **Autenticação & Empresa**
+
 - ✅ Login com email/senha via Firebase
 - ✅ Persistência de sessão (AsyncStorage)
 - ✅ Cadastro obrigatório de empresa na primeira login
 - ✅ Validações de formulário com feedback
 
 ### **Gerenciamento de Clientes**
+
 - ✅ Listar clientes com busca
 - ✅ Adicionar novo cliente
 - ✅ Editar cliente existente
@@ -22,6 +24,7 @@ Este documento descreve o MVP completo do Opero, um sistema mobile para gestão 
 - ✅ Validações de CPF/CNPJ, telefone, endereço
 
 ### **Gerenciamento de Produtos/Serviços**
+
 - ✅ Listar produtos com categorização (Produto / Serviço)
 - ✅ Adicionar novo produto com preço
 - ✅ Editar produto
@@ -29,6 +32,7 @@ Este documento descreve o MVP completo do Opero, um sistema mobile para gestão 
 - ✅ Suporte a diferentes unidades (unidade, hora, metro, kg, litro, caixa)
 
 ### **Ordens de Serviço**
+
 - ✅ Listar ordens com filtro por status
 - ✅ Criar nova ordem de serviço
 - ⏳ Editar ordem (**em progresso - estrutura base criada**)
@@ -36,11 +40,13 @@ Este documento descreve o MVP completo do Opero, um sistema mobile para gestão 
 - ✅ Geração automática de número sequencial (OS-2026-XXXX)
 
 ### **Notas Fiscais**
+
 - ✅ Listar notas fiscais
 - ✅ Filtro por status (Rascunho, Enviada, Paga, Atrasada)
 - ⏳ Geração a partir de ordem de serviço (**estrutura base criada**)
 
 ### **Dashboard**
+
 - ✅ Home com informações da empresa
 - ✅ Menu de navegação para todas as funcionalidades
 - ✅ Cards de status rápido (placeholders)
@@ -97,14 +103,14 @@ Opero/
 
 ## 🔥 Tecnologias Utilizadas
 
-| Tecnologia | Versão | Propósito |
-|---|---|---|
-| **React Native** | 0.81.5 | Framework mobile |
-| **Expo** | 54.0.0 | Desenvolvimento local |
-| **Firebase** | 12.10.0 | Backend (Auth + Firestore) |
-| **TypeScript** | 5.9.2 | Tipagem |
-| **React Navigation** | Latest | Navegação |
-| **AsyncStorage** | 2.2.0 | Persistência local |
+| Tecnologia           | Versão  | Propósito                  |
+| -------------------- | ------- | -------------------------- |
+| **React Native**     | 0.81.5  | Framework mobile           |
+| **Expo**             | 54.0.0  | Desenvolvimento local      |
+| **Firebase**         | 12.10.0 | Backend (Auth + Firestore) |
+| **TypeScript**       | 5.9.2   | Tipagem                    |
+| **React Navigation** | Latest  | Navegação                  |
+| **AsyncStorage**     | 2.2.0   | Persistência local         |
 
 ---
 
@@ -178,15 +184,15 @@ service cloud.firestore {
     match /companies/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
-    
+
     match /clients/{clientId} {
       allow read, write: if request.auth.uid == resource.data.userId;
     }
-    
+
     match /products/{productId} {
       allow read, write: if request.auth.uid == resource.data.userId;
     }
-    
+
     // ...similar para orders e invoices
   }
 }
@@ -262,20 +268,24 @@ npm start
 ## 📝 Validações Implementadas
 
 ### **Autenticação**
+
 - ✅ Email válido (regex)
 - ✅ Senha mínimo 6 caracteres
 
 ### **Empresa**
+
 - ✅ Todos os campos obrigatórios
 - ✅ UF com 2 caracteres
 - ✅ Formato de endereço
 
 ### **Clientes**
+
 - ✅ Nome, CPF/CNPJ, telefone obrigatórios
 - ✅ Endereço completo
 - ✅ Email opcional
 
 ### **Produtos**
+
 - ✅ Nome obrigatório
 - ✅ Preço > 0
 - ✅ Tipo e unidade pré-selecionados
@@ -285,6 +295,7 @@ npm start
 ## 🎨 Design System
 
 ### **Cores**
+
 - Primary: `#2563EB` (Azul)
 - Success: `#10B981` (Verde)
 - Warning: `#F59E0B` (Laranja)
@@ -293,6 +304,7 @@ npm start
 - Text: `#1F2937` (Cinza escuro)
 
 ### **Componentes Customizados**
+
 - Botões com estados (loading, disabled)
 - Input fields com validação visual
 - Cards com sombra
@@ -332,18 +344,21 @@ App
 A seguir estão as funcionalidades que completa o MVP:
 
 ### **Prioridade 1: Crítica**
+
 - [ ] Teste completo em Android (Expo Go)
 - [ ] Teste completo em iOS (Expo Go)
 - [ ] Validar todas as transações Firestore
 - [ ] Tratar erros de rede com mensagens
 
 ### **Prioridade 2: Importante**
+
 - [ ] Ordem de Serviço: Formulário com múltiplos itens
 - [ ] Ordem de Serviço: Cálculo automático do total
 - [ ] Nota Fiscal: Geração a partir da Ordem
 - [ ] Relatórios básicos (totalizações)
 
 ### **Prioridade 3: Nice-to-Have**
+
 - [ ] Busca avançada com filtros
 - [ ] Exportar para PDF/Excel
 - [ ] Sincronização offline
@@ -413,15 +428,15 @@ npm run build:web
 
 ## 📊 Métricas do MVP
 
-| Métrica | Valor |
-|---|---|
-| **Telas implementadas** | 10+ |
-| **Contextos de estado** | 6 |
-| **Validações** | 20+ |
-| **Linhas de código** | ~6000 |
-| **Componentes reutilizáveis** | 5+ |
-| **Firestore collections** | 5 |
-| **TypeScript interfaces** | 8 |
+| Métrica                       | Valor |
+| ----------------------------- | ----- |
+| **Telas implementadas**       | 10+   |
+| **Contextos de estado**       | 6     |
+| **Validações**                | 20+   |
+| **Linhas de código**          | ~6000 |
+| **Componentes reutilizáveis** | 5+    |
+| **Firestore collections**     | 5     |
+| **TypeScript interfaces**     | 8     |
 
 ---
 
@@ -443,14 +458,17 @@ npm run build:web
 ## 📞 Suporte & Documentação
 
 ### **Firebase Console**
+
 - Projeto: `[seu-projeto-id]`
 - URL: https://console.firebase.google.com
 
 ### **Repositório**
+
 - Git main branch: commits atômicos
 - Commits nomear com `feat:`, `fix:`, `docs:` etc
 
 ### **Contato**
+
 - Desenvolvedor: @seu-github
 - Issues: GitHub Issues
 - Email: dev@example.com

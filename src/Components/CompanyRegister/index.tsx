@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { useCompany } from "../../contexts/CompanyContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { Company } from "../../types";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -25,9 +26,11 @@ import {
   formatZipCode,
   cleanFormat,
 } from "../../utils/formatting";
+import { criarUsuarioGlobal } from "../../services/firebase/usuarioService";
 
 export function CompanyRegister() {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const {
     registerCompany,
     isLoadingCompany,
@@ -51,30 +54,6 @@ export function CompanyRegister() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isFetchingCNPJ, setIsFetchingCNPJ] = useState(false);
-
-  // Verifica se usuário já tem empresa
-  useEffect(() => {
-    const checkExistingCompany = async () => {
-      const hasCompany = await checkCompanyExists();
-      if (hasCompany) {
-        Alert.alert(
-          "Empresa já criada",
-          "Você já possui uma empresa cadastrada no Opero. Para criar outra empresa, entre em contato com o suporte.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                // Voltar para a tela anterior ou home
-                navigation.goBack();
-              },
-            },
-          ],
-        );
-      }
-    };
-
-    checkExistingCompany();
-  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -172,6 +151,18 @@ export function CompanyRegister() {
     try {
       clearCompanyError();
       console.log("[CompanyRegister] Iniciando registro de empresa...");
+
+      // Se usuário está pendente de criação de perfil, criar documento global
+      if (user?.necessarioCriarPerfil && user?.id && user?.email) {
+        console.log("[CompanyRegister] Criando documento global do usuário...");
+        await criarUsuarioGlobal(
+          user.id,
+          user.email,
+          user.name || "Usuário",
+          "users", // Role de proprietário
+        );
+        console.log("[CompanyRegister] Documento global criado com sucesso");
+      }
 
       const address: any = {
         street: formData.street.trim(),
