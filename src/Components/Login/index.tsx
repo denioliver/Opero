@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Alert,
   StyleSheet,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
 import { useFuncionario } from "../../contexts/FuncionarioContext";
@@ -16,6 +18,7 @@ export const Login: React.FC = () => {
   const [emailOrName, setEmailOrName] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [hasError, setHasError] = useState(false); // Flag para controlar re-renders
 
   const {
     login,
@@ -32,39 +35,46 @@ export const Login: React.FC = () => {
 
   const isLoading = authLoading || funcionarioLoading;
 
+  // Limpar erro quando usuário começa a digitar novamente
+  useEffect(() => {
+    if (hasError && (emailOrName || password)) {
+      setHasError(false);
+      clearError();
+      clearFuncionarioError();
+    }
+  }, [emailOrName, password]);
+
   const detectLoginType = (input: string): "email" | "name" => {
     return input.includes("@") ? "email" : "name";
   };
 
   const handleLogin = async () => {
-    clearError();
-    clearFuncionarioError();
+    // Se há erro, limpar antes de tentar novamente
+    if (hasError) {
+      setHasError(false);
+      clearError();
+      clearFuncionarioError();
+    }
 
     if (!emailOrName.trim() || !password.trim()) {
       Alert.alert("Erro", "Preencha email/nome e senha");
       return;
     }
 
-    try {
-      const type = detectLoginType(emailOrName);
+    const type = detectLoginType(emailOrName);
 
-      if (type === "email") {
-        // Login como Admin ou Proprietário (Firebase)
-        // Não precisa verificar se existe documento antes
-        // AuthContext vai lidar com isso (necessarioCriarPerfil)
-        await login(emailOrName, password);
-      } else {
-        // Login como Funcionário
-        Alert.alert(
-          "ℹ️ Login de Funcionário",
-          "Para fazer login como funcionário, você precisa saber o ID da empresa.\n\nPor enquanto, use o email (como admin/proprietário) e crie funcionários na tela de 'Acessos'.",
-        );
-      }
-    } catch (err) {
-      console.error("[Login] Erro:", err);
+    if (type === "email") {
+      // Login como Admin ou Proprietário (Firebase)
+      // AuthContext vai lidar com isso (necessarioCriarPerfil)
+      // Erros são exibidos via setError() na mensagem vermelha
+      await login(emailOrName, password);
+      // Se houver erro, authError será setado pelo AuthContext
+      // Se sucesso, onAuthStateChanged dispara e navega
+    } else {
+      // Login como Funcionário
       Alert.alert(
-        "Erro",
-        err instanceof Error ? err.message : "Erro ao fazer login",
+        "ℹ️ Login de Funcionário",
+        "Para fazer login como funcionário, você precisa saber o ID da empresa.\n\nPor enquanto, use o email (como admin/proprietário) e crie funcionários na tela de 'Acessos'.",
       );
     }
   };
@@ -73,90 +83,99 @@ export const Login: React.FC = () => {
     emailOrName.length > 0 && password.length > 0 && !isLoading;
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
-      contentContainerStyle={styles.scrollContent}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>O</Text>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={true}
+      >
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.logo}>
+              <Text style={styles.logoText}>O</Text>
+            </View>
+            <Text style={styles.title}>Opero</Text>
+            <Text style={styles.subtitle}>Gestão de Empresas</Text>
           </View>
-          <Text style={styles.title}>Opero</Text>
-          <Text style={styles.subtitle}>Gestão de Empresas</Text>
-        </View>
 
-        {/* Info Box */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoTitle}>📧 Email:</Text>
-          <Text style={styles.infoText}>Admin ou Proprietário</Text>
-          <Text style={styles.infoTitle} style={{ marginTop: 8 }}>
-            👤 Nome:
-          </Text>
-          <Text style={styles.infoText}>Funcionário da empresa</Text>
-        </View>
-
-        {/* Errors */}
-        {(authError || funcionarioError) && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>
-              {authError || funcionarioError}
+          {/* Info Box */}
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>📧 Email:</Text>
+            <Text style={styles.infoText}>Admin ou Proprietário</Text>
+            <Text style={styles.infoTitle} style={{ marginTop: 8 }}>
+              👤 Nome:
             </Text>
+            <Text style={styles.infoText}>Funcionário da empresa</Text>
           </View>
-        )}
 
-        {/* Form */}
-        <View style={styles.form}>
-          <Text style={styles.label}>Email ou Nome</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="seu@email.com ou João Silva"
-            value={emailOrName}
-            onChangeText={setEmailOrName}
-            autoCapitalize="none"
-            editable={!isLoading}
-            placeholderTextColor="#999"
-          />
+          {/* Errors */}
+          {(authError || funcionarioError) && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>
+                {authError || funcionarioError}
+              </Text>
+            </View>
+          )}
 
-          <Text style={styles.label}>Senha</Text>
-          <View style={styles.passwordBox}>
+          {/* Form */}
+          <View style={styles.form}>
+            <Text style={styles.label}>Email ou Nome</Text>
             <TextInput
-              style={styles.passwordInput}
-              placeholder="••••••••"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
+              style={styles.input}
+              placeholder="seu@email.com ou João Silva"
+              value={emailOrName}
+              onChangeText={setEmailOrName}
+              autoCapitalize="none"
               editable={!isLoading}
               placeholderTextColor="#999"
+              keyboardType="email-address"
             />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => setShowPassword(!showPassword)}
-              disabled={isLoading}
-            >
-              <Text>{showPassword ? "👁️" : "🔒"}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* Button */}
-        <TouchableOpacity
-          style={[
-            styles.button,
-            !isFormValid ? styles.buttonDisabled : undefined,
-          ]}
-          onPress={handleLogin}
-          disabled={!isFormValid}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Entrar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+            <Text style={styles.label}>Senha</Text>
+            <View style={styles.passwordBox}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="••••••••"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                editable={!isLoading}
+                placeholderTextColor="#999"
+              />
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+              >
+                <Text>{showPassword ? "👁️" : "🔒"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Button */}
+          <TouchableOpacity
+            style={[
+              styles.button,
+              !isFormValid ? styles.buttonDisabled : undefined,
+            ]}
+            onPress={handleLogin}
+            disabled={!isFormValid}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <Text style={styles.buttonText}>Entrar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -273,8 +292,10 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: "#2563EB",
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    minHeight: 48,
     alignItems: "center",
+    justifyContent: "center",
   },
   buttonDisabled: {
     backgroundColor: "#9CA3AF",

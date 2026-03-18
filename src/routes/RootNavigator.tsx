@@ -11,7 +11,9 @@ export default function RootNavigator() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const { company, isLoadingCompany } = useCompany();
 
-  if (isLoading || isLoadingCompany) {
+  // Mostrar loading APENAS se está carregando dados da empresa após autenticar
+  // Durante login, o botão já gira - não precisa de tela de loading global
+  if (isAuthenticated && isLoadingCompany) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#2563EB" />

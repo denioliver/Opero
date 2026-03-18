@@ -126,7 +126,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             // Usuário deslogado
             setUser(null);
             setIsLoading(false);
-            setIsLoginInProgress(false);
+            // Se há erro de login, manter isLoginInProgress=true para evitar re-renders desnecessários
+            // Isso evita que onAuthStateChanged dispare novamente enquanto há erro exibido
+            if (!error) {
+              setIsLoginInProgress(false);
+            }
           }
 
           // Marca que já inicializou na primeira resposta
@@ -152,7 +156,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       isMounted = false;
       unsubscribe();
     };
-  }, [isLoginInProgress, hasInitialized]);
+  }, []); // Dependência vazia - listener executa apenas uma vez ao montar
 
   const login = async (email: string, password: string) => {
     console.log("[AuthContext] Iniciando login com:", email);
@@ -170,8 +174,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       console.error("[AuthContext] Erro login:", errorCode, message);
       setError(message);
       setIsLoading(false);
-      setIsLoginInProgress(false);
-      throw new Error(message);
+      // NÃO fazer setIsLoginInProgress(false) aqui!
+      // Manter true para evitar que onAuthStateChanged cause re-render
+      // O erro limpa automaticamente quando usuário digita novamente
     }
   };
 
