@@ -52,6 +52,7 @@ export const AcessosScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [senha, setSenha] = useState("");
+  const [canAccessAdminCards, setCanAccessAdminCards] = useState(false);
   const [isFormLoading, setIsFormLoading] = useState(false);
 
   useEffect(() => {
@@ -80,6 +81,7 @@ export const AcessosScreen: React.FC = () => {
     setEmail("");
     setTelefone("");
     setSenha("");
+    setCanAccessAdminCards(false);
     setEditingId(null);
   };
 
@@ -91,6 +93,7 @@ export const AcessosScreen: React.FC = () => {
       setEmail(funcionario.email || "");
       setTelefone(funcionario.telefone || "");
       setSenha(""); // Não carrega senha anterior
+      setCanAccessAdminCards(!!funcionario.canAccessAdminCards);
     } else {
       resetForm();
     }
@@ -123,6 +126,7 @@ export const AcessosScreen: React.FC = () => {
           qualificacao: selectedQualificacao,
           email: email || undefined,
           telefone: telefone || undefined,
+          canAccessAdminCards,
         };
 
         if (senha.trim()) {
@@ -140,6 +144,7 @@ export const AcessosScreen: React.FC = () => {
           selectedQualificacao,
           email || undefined,
           telefone || undefined,
+          canAccessAdminCards,
         );
         Alert.alert("Sucesso", "Funcionário criado");
       }
@@ -270,6 +275,12 @@ export const AcessosScreen: React.FC = () => {
                     {new Date(item.createdAt).toLocaleDateString("pt-BR")}
                   </Text>
                 </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>🛡️ Admin:</Text>
+                  <Text style={styles.value}>
+                    {item.canAccessAdminCards ? "Permitido" : "Sem acesso"}
+                  </Text>
+                </View>
               </View>
 
               {/* Botões */}
@@ -394,6 +405,34 @@ export const AcessosScreen: React.FC = () => {
                   secureTextEntry
                   editable={!isFormLoading}
                 />
+              </View>
+
+              {/* Acesso a Administração */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>
+                  Acesso aos cards de Administração
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.permissionToggle,
+                    canAccessAdminCards
+                      ? styles.permissionToggleActive
+                      : styles.permissionToggleInactive,
+                  ]}
+                  onPress={() => setCanAccessAdminCards((prev) => !prev)}
+                  disabled={isFormLoading}
+                >
+                  <Text
+                    style={[
+                      styles.permissionToggleText,
+                      canAccessAdminCards
+                        ? styles.permissionToggleTextActive
+                        : styles.permissionToggleTextInactive,
+                    ]}
+                  >
+                    {canAccessAdminCards ? "Permitido" : "Bloqueado"}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
 
@@ -675,6 +714,30 @@ const styles = StyleSheet.create({
   },
   qualBtnTextActive: {
     color: "#FFF",
+  },
+  permissionToggle: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  permissionToggleActive: {
+    backgroundColor: "#DBEAFE",
+    borderColor: "#2563EB",
+  },
+  permissionToggleInactive: {
+    backgroundColor: "#F9FAFB",
+    borderColor: "#D1D5DB",
+  },
+  permissionToggleText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  permissionToggleTextActive: {
+    color: "#1D4ED8",
+  },
+  permissionToggleTextInactive: {
+    color: "#6B7280",
   },
   modalButtons: {
     flexDirection: "row",

@@ -47,7 +47,8 @@ export async function criarFuncionario(
   senha: string,
   qualificacao: FuncionarioQualificacao,
   email?: string,
-  telefone?: string
+  telefone?: string,
+  canAccessAdminCards: boolean = false
 ): Promise<string> {
   try {
     ensureBcryptRandomFallback();
@@ -82,6 +83,7 @@ export async function criarFuncionario(
       nome: nomeLimpo,
       senha: senhaHash,
       qualificacao,
+      canAccessAdminCards,
       ...(email ? { email } : {}),
       ...(telefone ? { telefone } : {}),
       createdAt: new Date(),

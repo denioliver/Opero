@@ -52,6 +52,7 @@ export interface Funcionario {
   nome: string;
   senha: string; // Hash bcrypt
   qualificacao: FuncionarioQualificacao;
+  canAccessAdminCards?: boolean;
   
   // Opcional
   email?: string;
@@ -120,4 +121,5 @@ export interface FuncionarioContexto {
   funcionarioNome: string;
   qualificacao: FuncionarioQualificacao;
   empresaId: string;
+  canAccessAdminCards?: boolean;
 }

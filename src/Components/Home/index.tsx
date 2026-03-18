@@ -51,6 +51,8 @@ export const Home: React.FC = () => {
     company?.ownerName ||
     user?.name ||
     "Proprietário";
+  const isProprietario = user?.role === "users";
+  const canSeeAdminCards = isProprietario || !!funcionario?.canAccessAdminCards;
 
   const handleStatusPress = (
     statusKey: "ordens" | "clientes" | "produtos" | "nfs",
@@ -231,21 +233,23 @@ export const Home: React.FC = () => {
         </View>
 
         {/* Admin Menu */}
-        <View style={styles.menuSection}>
-          <Text style={styles.menuSectionTitle}>Administração</Text>
-          <View style={styles.menuGrid}>
-            {adminMenuItems.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.menuItem}
-                onPress={item.onPress}
-              >
-                <Text style={styles.menuIcon}>{item.icon}</Text>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
+        {canSeeAdminCards && (
+          <View style={styles.menuSection}>
+            <Text style={styles.menuSectionTitle}>Administração</Text>
+            <View style={styles.menuGrid}>
+              {adminMenuItems.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.menuItem}
+                  onPress={item.onPress}
+                >
+                  <Text style={styles.menuIcon}>{item.icon}</Text>
+                  <Text style={styles.menuLabel}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
