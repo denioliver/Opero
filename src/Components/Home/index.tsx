@@ -11,7 +11,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { useCompany } from "../../contexts/CompanyContext";
 import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { StackNavigationProp } from "@react-navigation/stack";
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -20,6 +20,7 @@ type RootStackParamList = {
   OrdersList: undefined;
   InvoicesList: undefined;
   Acessos: undefined;
+  Relatorios: undefined;
   Auditoria:
     | {
         statusKey?: "ordens" | "clientes" | "produtos" | "nfs";
@@ -42,8 +43,7 @@ export const Home: React.FC = () => {
     isLoading: funcionarioLoading,
   } = useFuncionario();
   const { company } = useCompany();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [loggingOut, setLoggingOut] = useState(false);
   const isLoading = authLoading || funcionarioLoading;
   const ownerDisplayName =
@@ -53,6 +53,15 @@ export const Home: React.FC = () => {
     "Proprietário";
   const isProprietario = user?.role === "users";
   const canSeeAdminCards = isProprietario || !!funcionario?.canAccessAdminCards;
+
+  const canAccessAdminFeature = (
+    feature: "acessos" | "auditoria" | "relatorios",
+  ) => {
+    if (isProprietario) return true;
+    if (!funcionario?.canAccessAdminCards) return false;
+    if (!funcionario.adminPermissions) return true; // compatibilidade com cadastros antigos
+    return !!funcionario.adminPermissions[feature];
+  };
 
   const handleStatusPress = (
     statusKey: "ordens" | "clientes" | "produtos" | "nfs",
@@ -124,7 +133,18 @@ export const Home: React.FC = () => {
       onPress: () =>
         navigation.navigate("Auditoria" as keyof RootStackParamList),
     },
+    {
+      id: "relatorios",
+      icon: "REL",
+      label: "Relatórios",
+      onPress: () =>
+        navigation.navigate("Relatorios" as keyof RootStackParamList),
+    },
   ];
+
+  const visibleAdminMenuItems = adminMenuItems.filter((item) =>
+    canAccessAdminFeature(item.id as any),
+  );
 
   const statusItems = [
     { id: "ordens", label: "Ordens", value: "0" },
@@ -183,10 +203,7 @@ export const Home: React.FC = () => {
             <View style={styles.companyInfoContainer}>
               <Text style={styles.infLabel}>Empresa:</Text>
               <Text style={styles.infValue}>{company.name}</Text>
-              <Text
-                style={styles.infValue}
-                style={{ color: "#9CA3AF", marginTop: 4 }}
-              >
+              <Text style={[styles.infValue, styles.companyLocation]}>
                 {company.city}, {company.state}
               </Text>
             </View>
@@ -233,11 +250,11 @@ export const Home: React.FC = () => {
         </View>
 
         {/* Admin Menu */}
-        {canSeeAdminCards && (
+        {canSeeAdminCards && visibleAdminMenuItems.length > 0 && (
           <View style={styles.menuSection}>
             <Text style={styles.menuSectionTitle}>Administração</Text>
             <View style={styles.menuGrid}>
-              {adminMenuItems.map((item) => (
+              {visibleAdminMenuItems.map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={styles.menuItem}
@@ -299,34 +316,34 @@ const styles = StyleSheet.create({
   welcomeCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 18,
-    borderLeftWidth: 4,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 2,
     borderLeftColor: "#2563EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 1,
   },
   welcomeText: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#6B7280",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   userName: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 2,
   },
   userEmail: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#6B7280",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   companyInfoContainer: {
-    paddingTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
   },
@@ -340,6 +357,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#374151",
     fontWeight: "500",
+  },
+  companyLocation: {
+    color: "#9CA3AF",
+    marginTop: 2,
   },
   menuSection: {
     marginBottom: 18,

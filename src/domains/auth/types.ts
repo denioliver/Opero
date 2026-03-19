@@ -42,6 +42,12 @@ export type FuncionarioQualificacao =
   | 'outro';
 
 /**
+ * Permissões granulares para as telas de Administração
+ */
+export type AdminFeature = 'acessos' | 'auditoria' | 'relatorios';
+export type AdminPermissions = Partial<Record<AdminFeature, boolean>>;
+
+/**
  * Funcionário dentro de uma empresa
  * Armazenado em: /empresas/{empresaId}/funcionarios/{funcionarioId}
  * Login: nome + senha (não usa Firebase Auth)
@@ -53,6 +59,7 @@ export interface Funcionario {
   senha: string; // Hash bcrypt
   qualificacao: FuncionarioQualificacao;
   canAccessAdminCards?: boolean;
+  adminPermissions?: AdminPermissions;
   
   // Opcional
   email?: string;
@@ -122,4 +129,5 @@ export interface FuncionarioContexto {
   qualificacao: FuncionarioQualificacao;
   empresaId: string;
   canAccessAdminCards?: boolean;
+  adminPermissions?: AdminPermissions;
 }

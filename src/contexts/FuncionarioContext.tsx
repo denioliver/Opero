@@ -52,6 +52,7 @@ export const FuncionarioProvider: React.FC<{ children: React.ReactNode }> = ({
         qualificacao: funcionarioData.qualificacao,
         empresaId: funcionarioData.empresaId,
         canAccessAdminCards: !!funcionarioData.canAccessAdminCards,
+        adminPermissions: funcionarioData.adminPermissions,
       });
 
       console.log("[FuncionarioContext] Funcionário logado:", nome);

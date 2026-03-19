@@ -39,9 +39,17 @@ export async function registrarAuditoria(
       colecao,
       documentoId,
       dados,
-      mudancas: mudancas || undefined,
+      ...(mudancas !== undefined ? { mudancas } : {}),
       criadoEm: new Date(),
     };
+
+    // Firestore não aceita valores `undefined` em nenhuma profundidade.
+    // Mantemos uma sanitização rasa aqui para evitar erros acidentais.
+    Object.keys(logData as any).forEach((key) => {
+      if ((logData as any)[key] === undefined) {
+        delete (logData as any)[key];
+      }
+    });
 
     const docRef = await addDoc(auditoriaRef, logData);
     console.log(

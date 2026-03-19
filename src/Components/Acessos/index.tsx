@@ -24,7 +24,15 @@ import {
   atualizarFuncionario,
   desativarFuncionario,
 } from "../../services/firebase/funcionarioService";
-import { Funcionario, FuncionarioQualificacao } from "../../domains/auth/types";
+import { registrarAuditoria } from "../../services/firebase/auditoriaService";
+import {
+  AdminPermissions,
+  Funcionario,
+  FuncionarioContexto,
+  FuncionarioQualificacao,
+} from "../../domains/auth/types";
+import { useAuth } from "../../contexts/AuthContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 
 const QUALIFICACOES: Array<{ label: string; value: FuncionarioQualificacao }> =
   [
@@ -40,6 +48,14 @@ const QUALIFICACOES: Array<{ label: string; value: FuncionarioQualificacao }> =
 
 export const AcessosScreen: React.FC = () => {
   const { company } = useCompany();
+  const { user } = useAuth();
+  const { funcionario } = useFuncionario();
+  const isProprietario = user?.role === "users";
+  const canAccessThisScreen =
+    isProprietario ||
+    (!!funcionario?.canAccessAdminCards &&
+      (!funcionario.adminPermissions ||
+        !!funcionario.adminPermissions.acessos));
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,13 +69,42 @@ export const AcessosScreen: React.FC = () => {
   const [telefone, setTelefone] = useState("");
   const [senha, setSenha] = useState("");
   const [canAccessAdminCards, setCanAccessAdminCards] = useState(false);
+  const [adminPermissions, setAdminPermissions] = useState<AdminPermissions>({
+    acessos: true,
+    auditoria: true,
+    relatorios: true,
+  });
   const [isFormLoading, setIsFormLoading] = useState(false);
 
+  const getAuditActor = (): FuncionarioContexto | null => {
+    if (funcionario) return funcionario;
+    if (user && company) {
+      return {
+        funcionarioId: user.id,
+        funcionarioNome: user.name || user.email,
+        qualificacao: "outro",
+        empresaId: company.companyId,
+        canAccessAdminCards: true,
+      };
+    }
+    return null;
+  };
+
   useEffect(() => {
-    if (company) {
+    if (company && canAccessThisScreen) {
       carregarFuncionarios();
     }
-  }, [company]);
+  }, [company, canAccessThisScreen]);
+
+  if (!canAccessThisScreen) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={{ color: "#6B7280" }}>
+          Você não tem permissão para acessar esta tela.
+        </Text>
+      </View>
+    );
+  }
 
   const carregarFuncionarios = async () => {
     if (!company) return;
@@ -82,6 +127,7 @@ export const AcessosScreen: React.FC = () => {
     setTelefone("");
     setSenha("");
     setCanAccessAdminCards(false);
+    setAdminPermissions({ acessos: true, auditoria: true, relatorios: true });
     setEditingId(null);
   };
 
@@ -94,10 +140,24 @@ export const AcessosScreen: React.FC = () => {
       setTelefone(funcionario.telefone || "");
       setSenha(""); // Não carrega senha anterior
       setCanAccessAdminCards(!!funcionario.canAccessAdminCards);
+      setAdminPermissions(
+        funcionario.adminPermissions || {
+          acessos: true,
+          auditoria: true,
+          relatorios: true,
+        },
+      );
     } else {
       resetForm();
     }
     setModalVisible(true);
+  };
+
+  const toggleAdminPermission = (key: keyof AdminPermissions) => {
+    setAdminPermissions((prev) => ({
+      ...prev,
+      [key]: !prev?.[key],
+    }));
   };
 
   const handleCloseModal = () => {
@@ -127,6 +187,7 @@ export const AcessosScreen: React.FC = () => {
           email: email || undefined,
           telefone: telefone || undefined,
           canAccessAdminCards,
+          adminPermissions: canAccessAdminCards ? adminPermissions : {},
         };
 
         if (senha.trim()) {
@@ -134,10 +195,27 @@ export const AcessosScreen: React.FC = () => {
         }
 
         await atualizarFuncionario(company.companyId, editingId, dataUpdate);
+
+        const actor = getAuditActor();
+        if (actor) {
+          await registrarAuditoria(
+            company.companyId,
+            actor,
+            "editar_funcionario",
+            "funcionarios",
+            editingId,
+            {
+              funcionarioNome: nome,
+              qualificacao: selectedQualificacao,
+              canAccessAdminCards,
+              adminPermissions: canAccessAdminCards ? adminPermissions : null,
+            },
+          );
+        }
         Alert.alert("Sucesso", "Funcionário atualizado");
       } else {
         // Criar
-        await criarFuncionario(
+        const newId = await criarFuncionario(
           company.companyId,
           nome,
           senha,
@@ -145,7 +223,25 @@ export const AcessosScreen: React.FC = () => {
           email || undefined,
           telefone || undefined,
           canAccessAdminCards,
+          canAccessAdminCards ? adminPermissions : undefined,
         );
+
+        const actor = getAuditActor();
+        if (actor) {
+          await registrarAuditoria(
+            company.companyId,
+            actor,
+            "criar_funcionario",
+            "funcionarios",
+            newId,
+            {
+              funcionarioNome: nome,
+              qualificacao: selectedQualificacao,
+              canAccessAdminCards,
+              adminPermissions: canAccessAdminCards ? adminPermissions : null,
+            },
+          );
+        }
         Alert.alert("Sucesso", "Funcionário criado");
       }
 
@@ -173,6 +269,21 @@ export const AcessosScreen: React.FC = () => {
           try {
             if (company) {
               await desativarFuncionario(company.companyId, funcionario.id);
+
+              const actor = getAuditActor();
+              if (actor) {
+                await registrarAuditoria(
+                  company.companyId,
+                  actor,
+                  "desativar_funcionario",
+                  "funcionarios",
+                  funcionario.id,
+                  {
+                    funcionarioNome: funcionario.nome,
+                  },
+                );
+              }
+
               await carregarFuncionarios();
               Alert.alert("Sucesso", "Funcionário desativado");
             }
@@ -277,7 +388,20 @@ export const AcessosScreen: React.FC = () => {
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Administração:</Text>
                   <Text style={styles.value}>
-                    {item.canAccessAdminCards ? "Permitido" : "Sem acesso"}
+                    {item.canAccessAdminCards
+                      ? (() => {
+                          const perms = item.adminPermissions;
+                          if (!perms) return "Permitido";
+                          const allowed = [
+                            perms.acessos ? "Acessos" : null,
+                            perms.auditoria ? "Histórico" : null,
+                            perms.relatorios ? "Relatórios" : null,
+                          ].filter(Boolean) as string[];
+                          return allowed.length > 0
+                            ? `Permitido: ${allowed.join(", ")}`
+                            : "Permitido";
+                        })()
+                      : "Sem acesso"}
                   </Text>
                 </View>
               </View>
@@ -408,9 +532,7 @@ export const AcessosScreen: React.FC = () => {
 
               {/* Acesso a Administração */}
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
-                  Acesso aos cards de Administração
-                </Text>
+                <Text style={styles.formLabel}>Administração</Text>
                 <TouchableOpacity
                   style={[
                     styles.permissionToggle,
@@ -418,7 +540,19 @@ export const AcessosScreen: React.FC = () => {
                       ? styles.permissionToggleActive
                       : styles.permissionToggleInactive,
                   ]}
-                  onPress={() => setCanAccessAdminCards((prev) => !prev)}
+                  onPress={() =>
+                    setCanAccessAdminCards((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        setAdminPermissions({
+                          acessos: true,
+                          auditoria: true,
+                          relatorios: true,
+                        });
+                      }
+                      return next;
+                    })
+                  }
                   disabled={isFormLoading}
                 >
                   <Text
@@ -433,6 +567,85 @@ export const AcessosScreen: React.FC = () => {
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Permissões por tela (quando permitido) */}
+              {canAccessAdminCards && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Telas liberadas</Text>
+                  <View style={styles.permissionsGrid}>
+                    <TouchableOpacity
+                      style={[
+                        styles.permissionChip,
+                        adminPermissions.acessos
+                          ? styles.permissionChipOn
+                          : styles.permissionChipOff,
+                      ]}
+                      onPress={() => toggleAdminPermission("acessos")}
+                      disabled={isFormLoading}
+                    >
+                      <Text
+                        style={[
+                          styles.permissionChipText,
+                          adminPermissions.acessos
+                            ? styles.permissionChipTextOn
+                            : styles.permissionChipTextOff,
+                        ]}
+                      >
+                        Acessos
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.permissionChip,
+                        adminPermissions.auditoria
+                          ? styles.permissionChipOn
+                          : styles.permissionChipOff,
+                      ]}
+                      onPress={() => toggleAdminPermission("auditoria")}
+                      disabled={isFormLoading}
+                    >
+                      <Text
+                        style={[
+                          styles.permissionChipText,
+                          adminPermissions.auditoria
+                            ? styles.permissionChipTextOn
+                            : styles.permissionChipTextOff,
+                        ]}
+                      >
+                        Histórico
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.permissionChip,
+                        adminPermissions.relatorios
+                          ? styles.permissionChipOn
+                          : styles.permissionChipOff,
+                      ]}
+                      onPress={() => toggleAdminPermission("relatorios")}
+                      disabled={isFormLoading}
+                    >
+                      <Text
+                        style={[
+                          styles.permissionChipText,
+                          adminPermissions.relatorios
+                            ? styles.permissionChipTextOn
+                            : styles.permissionChipTextOff,
+                        ]}
+                      >
+                        Relatórios
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.permissionsHint}>
+                    Se desmarcar uma tela, ela não aparece no menu de
+                    Administração.
+                  </Text>
+                </View>
+              )}
             </ScrollView>
 
             {/* Botões Ação */}
@@ -737,6 +950,42 @@ const styles = StyleSheet.create({
   },
   permissionToggleTextInactive: {
     color: "#6B7280",
+  },
+  permissionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingTop: 8,
+  },
+  permissionChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  permissionChipOn: {
+    backgroundColor: "#DBEAFE",
+    borderColor: "#2563EB",
+  },
+  permissionChipOff: {
+    backgroundColor: "#F9FAFB",
+    borderColor: "#D1D5DB",
+  },
+  permissionChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  permissionChipTextOn: {
+    color: "#1D4ED8",
+  },
+  permissionChipTextOff: {
+    color: "#6B7280",
+  },
+  permissionsHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#6B7280",
+    lineHeight: 16,
   },
   modalButtons: {
     flexDirection: "row",

@@ -17,6 +17,8 @@ import {
   TextInput,
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
+import { useAuth } from "../../contexts/AuthContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { useCompany } from "../../contexts/CompanyContext";
 import { listarAuditoria } from "../../services/firebase/auditoriaService";
 import { AuditoriaLog } from "../../domains/auth/types";
@@ -27,6 +29,8 @@ type AuditoriaRouteParams = {
 };
 
 export const AuditoriaScreen: React.FC = () => {
+  const { user } = useAuth();
+  const { funcionario } = useFuncionario();
   const { company } = useCompany();
   const route = useRoute<any>();
   const params = (route.params || {}) as AuditoriaRouteParams;
@@ -38,6 +42,17 @@ export const AuditoriaScreen: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<AuditoriaLog | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterAcao, setFilterAcao] = useState("");
+  const [filterColecao, setFilterColecao] = useState("");
+  const [filterResponsavel, setFilterResponsavel] = useState("");
+  const [filterDataInicio, setFilterDataInicio] = useState("");
+  const [filterDataFim, setFilterDataFim] = useState("");
+
+  const isProprietario = user?.role === "users";
+  const canAccessThisScreen =
+    isProprietario ||
+    (!!funcionario?.canAccessAdminCards &&
+      (!funcionario.adminPermissions ||
+        !!funcionario.adminPermissions.auditoria));
 
   const matchesStatusFilter = (
     log: AuditoriaLog,
@@ -67,26 +82,90 @@ export const AuditoriaScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    if (company) {
+    if (company && canAccessThisScreen) {
       carregarAuditoria();
     }
-  }, [company, statusKey, filterAcao]);
+  }, [
+    company,
+    canAccessThisScreen,
+    statusKey,
+    filterAcao,
+    filterColecao,
+    filterResponsavel,
+    filterDataInicio,
+    filterDataFim,
+  ]);
+
+  const parseBrDate = (value: string, endOfDay: boolean) => {
+    const raw = (value || "").trim();
+    if (!raw) return undefined;
+
+    const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return undefined;
+
+    const day = Number(match[1]);
+    const month = Number(match[2]);
+    const year = Number(match[3]);
+    if (!day || !month || !year) return undefined;
+
+    const date = new Date(year, month - 1, day);
+    if (Number.isNaN(date.getTime())) return undefined;
+
+    if (endOfDay) {
+      date.setHours(23, 59, 59, 999);
+    } else {
+      date.setHours(0, 0, 0, 0);
+    }
+
+    return date;
+  };
 
   const carregarAuditoria = async () => {
     if (!company) return;
     try {
       setIsLoading(true);
+      const dataInicio = parseBrDate(filterDataInicio, false);
+      const dataFim = parseBrDate(filterDataFim, true);
+
+      // Busca ampla + filtros em memória (permite substring, sem depender de indexes)
       const logs = await listarAuditoria(company.companyId, {
-        acao: filterAcao || undefined,
+        dataInicio,
+        dataFim,
       });
 
+      const acaoTerm = filterAcao.trim().toLowerCase();
+      const colecaoTerm = filterColecao.trim().toLowerCase();
+      const respTerm = filterResponsavel.trim().toLowerCase();
+
+      let filtered = logs;
+
+      if (acaoTerm) {
+        filtered = filtered.filter((log) =>
+          (log.acao || "").toLowerCase().includes(acaoTerm),
+        );
+      }
+
+      if (colecaoTerm) {
+        filtered = filtered.filter((log) =>
+          (log.colecao || "").toLowerCase().includes(colecaoTerm),
+        );
+      }
+
+      if (respTerm) {
+        filtered = filtered.filter((log) =>
+          (log.funcionarioNome || "").toLowerCase().includes(respTerm),
+        );
+      }
+
       if (statusKey) {
-        setAuditorias(
-          logs.filter((log) => matchesStatusFilter(log, statusKey)),
+        filtered = filtered.filter((log) =>
+          matchesStatusFilter(log, statusKey),
         );
       } else {
-        setAuditorias(logs);
+        // sem filtro por status
       }
+
+      setAuditorias(filtered);
     } catch (error) {
       Alert.alert("Erro", "Não foi possível carregar auditoria");
       console.error("[AuditoriaScreen] Erro:", error);
@@ -160,6 +239,16 @@ export const AuditoriaScreen: React.FC = () => {
     );
   }
 
+  if (!canAccessThisScreen) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={{ color: "#6B7280" }}>
+          Você não tem permissão para acessar esta tela.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -182,7 +271,64 @@ export const AuditoriaScreen: React.FC = () => {
         </Text>
       </View>
 
-      {/* Lista */}
+      {/* Filtros */}
+      <View style={styles.filtersBox}>
+        <View style={styles.filtersRow}>
+          <View style={styles.filterField}>
+            <Text style={styles.filterLabel}>Ação</Text>
+            <TextInput
+              style={styles.filterInput}
+              placeholder="ex: criar_funcionario"
+              value={filterAcao}
+              onChangeText={setFilterAcao}
+            />
+          </View>
+          <View style={styles.filterField}>
+            <Text style={styles.filterLabel}>Coleção</Text>
+            <TextInput
+              style={styles.filterInput}
+              placeholder="ex: funcionarios"
+              value={filterColecao}
+              onChangeText={setFilterColecao}
+            />
+          </View>
+        </View>
+
+        <View style={styles.filtersRow}>
+          <View style={styles.filterField}>
+            <Text style={styles.filterLabel}>Responsável</Text>
+            <TextInput
+              style={styles.filterInput}
+              placeholder="nome/email"
+              value={filterResponsavel}
+              onChangeText={setFilterResponsavel}
+            />
+          </View>
+        </View>
+
+        <View style={styles.filtersRow}>
+          <View style={styles.filterField}>
+            <Text style={styles.filterLabel}>Data início</Text>
+            <TextInput
+              style={styles.filterInput}
+              placeholder="dd/mm/aaaa"
+              value={filterDataInicio}
+              onChangeText={setFilterDataInicio}
+            />
+          </View>
+          <View style={styles.filterField}>
+            <Text style={styles.filterLabel}>Data fim</Text>
+            <TextInput
+              style={styles.filterInput}
+              placeholder="dd/mm/aaaa"
+              value={filterDataFim}
+              onChangeText={setFilterDataFim}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Tabela */}
       {auditorias.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Nenhuma ação registrada</Text>
@@ -191,86 +337,50 @@ export const AuditoriaScreen: React.FC = () => {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={auditorias}
-          keyExtractor={(item) => item.id}
-          onEndReachedThreshold={0.5}
-          onEndReached={() => {
-            if (!isLoading) {
-              // Implementar paginação se necessário
-            }
-          }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => handleOpenDetails(item)}
-            >
-              {/* Card Header */}
-              <View style={styles.cardHeader}>
-                <View style={styles.cardLeft}>
-                  <Text style={styles.icon}>{getActionIcon(item.acao)}</Text>
-                  <View style={styles.titleSection}>
-                    <Text style={styles.cardTitle}>
-                      {getActionLabel(item.acao)}
-                    </Text>
-                    <Text style={styles.cardSubtitle}>
-                      {isStatusHistory
-                        ? `ID: ${item.documentoId}`
-                        : `Por ${item.funcionarioNome}`}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.timeBox}>
-                  <Text style={styles.timeText}>
-                    {new Date(item.criadoEm)
-                      .getHours()
-                      .toString()
-                      .padStart(2, "0")}
-                    :
-                    {new Date(item.criadoEm)
-                      .getMinutes()
-                      .toString()
-                      .padStart(2, "0")}
-                  </Text>
-                </View>
-              </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.tableWrap}>
+            <View style={styles.tableHeaderRow}>
+              <Text style={[styles.th, styles.colDate]}>Data/Hora</Text>
+              <Text style={[styles.th, styles.colAction]}>Ação</Text>
+              <Text style={[styles.th, styles.colCollection]}>Coleção</Text>
+              <Text style={[styles.th, styles.colDoc]}>Documento</Text>
+              <Text style={[styles.th, styles.colUser]}>Responsável</Text>
+            </View>
 
-              {/* Card Body */}
-              <View style={styles.cardContent}>
-                {!isStatusHistory && (
-                  <>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.label}>Responsável:</Text>
-                      <Text style={styles.value}>{item.funcionarioNome}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.label}>Cargo:</Text>
-                      <Text style={styles.value}>{item.qualificacao}</Text>
-                    </View>
-                  </>
-                )}
-                <View style={styles.detailRow}>
-                  <Text style={styles.label}>Coleção:</Text>
-                  <Text style={styles.value}>{item.colecao}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.label}>Data:</Text>
-                  <Text style={styles.value}>
-                    {new Date(item.criadoEm).toLocaleDateString("pt-BR")}
+            <FlatList
+              data={auditorias}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.tableRow}
+                  onPress={() => handleOpenDetails(item)}
+                >
+                  <Text style={[styles.td, styles.colDate]} numberOfLines={1}>
+                    {formatarData(item.criadoEm)}
                   </Text>
-                </View>
-              </View>
-
-              {/* Chevron */}
-              <View style={styles.cardFooter}>
-                <Text style={styles.chevron}>›</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.listContent}
-          refreshing={isLoading}
-          onRefresh={carregarAuditoria}
-        />
+                  <Text style={[styles.td, styles.colAction]} numberOfLines={1}>
+                    {item.acao}
+                  </Text>
+                  <Text
+                    style={[styles.td, styles.colCollection]}
+                    numberOfLines={1}
+                  >
+                    {item.colecao}
+                  </Text>
+                  <Text style={[styles.td, styles.colDoc]} numberOfLines={1}>
+                    {item.documentoId}
+                  </Text>
+                  <Text style={[styles.td, styles.colUser]} numberOfLines={1}>
+                    {item.funcionarioNome}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.tableListContent}
+              refreshing={isLoading}
+              onRefresh={carregarAuditoria}
+            />
+          </View>
+        </ScrollView>
       )}
 
       {/* Modal Detalhes */}
@@ -454,6 +564,94 @@ const styles = StyleSheet.create({
   infoBold: {
     fontWeight: "bold",
     color: "#2563EB",
+  },
+  filtersBox: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+  },
+  filtersRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 10,
+  },
+  filterField: {
+    flex: 1,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#374151",
+    marginBottom: 6,
+  },
+  filterInput: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    fontSize: 13,
+    color: "#111827",
+    backgroundColor: "#FFFFFF",
+  },
+  tableWrap: {
+    minWidth: 820,
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+  },
+  tableHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  tableRow: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: "#E5E7EB",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  tableListContent: {
+    paddingBottom: 30,
+  },
+  th: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#374151",
+  },
+  td: {
+    fontSize: 12,
+    color: "#111827",
+  },
+  colDate: {
+    width: 150,
+    paddingRight: 10,
+  },
+  colAction: {
+    width: 160,
+    paddingRight: 10,
+  },
+  colCollection: {
+    width: 140,
+    paddingRight: 10,
+  },
+  colDoc: {
+    width: 160,
+    paddingRight: 10,
+  },
+  colUser: {
+    width: 190,
   },
   emptyContainer: {
     flex: 1,

@@ -15,7 +15,11 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { Funcionario, FuncionarioQualificacao } from '../../domains/auth/types';
+import {
+  AdminPermissions,
+  Funcionario,
+  FuncionarioQualificacao,
+} from '../../domains/auth/types';
 import bcrypt from 'bcryptjs';
 
 let bcryptRandomFallbackConfigured = false;
@@ -48,7 +52,8 @@ export async function criarFuncionario(
   qualificacao: FuncionarioQualificacao,
   email?: string,
   telefone?: string,
-  canAccessAdminCards: boolean = false
+  canAccessAdminCards: boolean = false,
+  adminPermissions?: AdminPermissions
 ): Promise<string> {
   try {
     ensureBcryptRandomFallback();
@@ -84,6 +89,9 @@ export async function criarFuncionario(
       senha: senhaHash,
       qualificacao,
       canAccessAdminCards,
+      ...(canAccessAdminCards && adminPermissions
+        ? { adminPermissions }
+        : {}),
       ...(email ? { email } : {}),
       ...(telefone ? { telefone } : {}),
       createdAt: new Date(),

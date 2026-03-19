@@ -7,6 +7,7 @@ import { OrdersScreen } from "../Components/Orders/index";
 import { InvoicesScreen } from "../Components/Invoices/index";
 import { AcessosScreen } from "../Components/Acessos/index";
 import { AuditoriaScreen } from "../Components/Auditoria/index";
+import { RelatoriosScreen } from "../Components/Relatorios";
 
 const Stack = createStackNavigator();
 
@@ -50,6 +51,11 @@ export default function AppStack() {
       <Stack.Screen
         name="Auditoria"
         component={AuditoriaScreen}
+        options={{ animationEnabled: true }}
+      />
+      <Stack.Screen
+        name="Relatorios"
+        component={RelatoriosScreen}
         options={{ animationEnabled: true }}
       />
     </Stack.Navigator>
