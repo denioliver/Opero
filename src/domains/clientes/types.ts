@@ -7,12 +7,21 @@ export interface Cliente {
   nome: string;
   tipo: 'pf' | 'pj';
   documento: string;
+  rg?: string;
+  sexo?: 'masculino' | 'feminino' | 'outro' | 'nao_informado';
   email?: string;
   telefone?: string;
+
+  razaoSocial?: string;
+  nomeFantasia?: string;
+
+  limiteCredito?: number;
+  descontoPercentual?: number;
   
   endereco?: {
     rua: string;
     numero: string;
+    complemento?: string;
     cidade: string;
     estado: string;
     cep: string;
@@ -24,5 +33,5 @@ export interface Cliente {
   createdBy: string;
   updatedAt?: Timestamp;
   
-  status: 'ativo' | 'inativo';
+  status: 'ativo' | 'bloqueado' | 'inativo';
 }

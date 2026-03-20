@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useProducts } from "../../contexts/ProductsContext";
 import { Product } from "../../types";
+import { formatCurrencyBRL } from "../../utils/formatters";
 
 interface ProductsListProps {
   onSelectProduct?: (product: Product) => void;
@@ -56,51 +57,149 @@ export function ProductsList({ onSelectProduct, onAddNew }: ProductsListProps) {
     );
   };
 
-  const formatPrice = (price: number) => {
-    return `R$ ${price.toFixed(2).replace(".", ",")}`;
+  const getStatusColor = (
+    estoqueAtual: number,
+    estoqueMinimo: number,
+    estoqueMaximo: number,
+  ) => {
+    if (estoqueAtual === 0) return "#DC2626"; // Crítico
+    if (estoqueAtual < estoqueMinimo) return "#F59E0B"; // Baixo
+    if (estoqueAtual > estoqueMaximo) return "#3B82F6"; // Excesso
+    return "#10B981"; // Normal
   };
 
-  const renderProductItem = ({ item }: { item: Product }) => (
-    <View style={styles.productCard}>
-      <TouchableOpacity
-        style={styles.productContent}
-        onPress={() => onSelectProduct?.(item)}
-      >
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.name}</Text>
-          <View style={styles.productMetadata}>
-            <Text style={styles.productCategory}>{item.category}</Text>
-            <Text style={styles.productUnit}>{item.unit}</Text>
-          </View>
-          <Text style={styles.productPrice}>{formatPrice(item.unitPrice)}</Text>
-        </View>
-        <Text style={styles.arrowIcon}>›</Text>
-      </TouchableOpacity>
+  const getStatusLabel = (
+    estoqueAtual: number,
+    estoqueMinimo: number,
+    estoqueMaximo: number,
+  ) => {
+    if (estoqueAtual === 0) return "Crítico";
+    if (estoqueAtual < estoqueMinimo) return "Baixo";
+    if (estoqueAtual > estoqueMaximo) return "Excesso";
+    return "OK";
+  };
 
-      <View style={styles.productActions}>
+  const getMargem = (precoVenda: number, precoCusto?: number) => {
+    if (!precoCusto || precoCusto === 0) return 0;
+    return ((precoVenda - precoCusto) / precoCusto) * 100;
+  };
+
+  const renderProductItem = ({ item }: { item: Product }) => {
+    const estoqueAtual = item.currentStock || 0;
+    const estoqueMinimo = item.minimumStock || 0;
+    const estoqueMaximo = item.maximumStock || 0;
+    const statusColor = getStatusColor(
+      estoqueAtual,
+      estoqueMinimo,
+      estoqueMaximo,
+    );
+    const statusLabel = getStatusLabel(
+      estoqueAtual,
+      estoqueMinimo,
+      estoqueMaximo,
+    );
+    const margem = getMargem(item.unitPrice, item.costPrice);
+
+    return (
+      <View style={styles.productCard}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.editButton]}
+          style={styles.productContent}
           onPress={() => onSelectProduct?.(item)}
         >
-          <Text style={styles.actionButtonText}>Editar</Text>
+          <View style={styles.productLeft}>
+            {/* Status Badge */}
+            <View
+              style={[styles.statusBadge, { backgroundColor: statusColor }]}
+            >
+              <Text style={styles.statusBadgeText}>{statusLabel}</Text>
+            </View>
+
+            {/* Informações Básicas */}
+            <Text style={styles.productName}>{item.name}</Text>
+            <View style={styles.metadataRow}>
+              <Text style={styles.metaTag}>{item.category}</Text>
+              <Text style={styles.metaTag}>{item.unit}</Text>
+              {item.status === "inativo" && (
+                <Text style={[styles.metaTag, { backgroundColor: "#FECACA" }]}>
+                  Inativo
+                </Text>
+              )}
+            </View>
+
+            {/* Preços e Margem */}
+            <View style={styles.priceRow}>
+              <View style={styles.priceColumn}>
+                <Text style={styles.priceLabel}>Venda</Text>
+                <Text style={styles.priceValue}>
+                  {formatCurrencyBRL(item.unitPrice)}
+                </Text>
+              </View>
+              {item.costPrice && (
+                <View style={styles.priceColumn}>
+                  <Text style={styles.priceLabel}>Custo</Text>
+                  <Text style={[styles.priceValue, { fontSize: 12 }]}>
+                    {formatCurrencyBRL(item.costPrice)}
+                  </Text>
+                </View>
+              )}
+              {margem > 0 && (
+                <View style={styles.priceColumn}>
+                  <Text style={styles.priceLabel}>Margem</Text>
+                  <Text style={[styles.priceValue, { color: "#10B981" }]}>
+                    {margem.toFixed(0)}%
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Estoque */}
+            <View style={styles.estoqueRow}>
+              <Text style={styles.estoqueLabel}>
+                Estoque: {estoqueAtual} / {estoqueMinimo}-{estoqueMaximo}
+              </Text>
+              <Text
+                style={[
+                  styles.estoqueLabel,
+                  {
+                    color: estoqueAtual < estoqueMinimo ? "#DC2626" : "#10B981",
+                  },
+                ]}
+              >
+                {estoqueAtual < estoqueMinimo ? "⚠️" : "✓"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Arrow Icon */}
+          <Text style={styles.arrowIcon}>›</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDelete(item.productId, item.name)}
-          disabled={deleting === item.productId}
-        >
-          {deleting === item.productId ? (
-            <ActivityIndicator size="small" color="#EF4444" />
-          ) : (
-            <Text style={[styles.actionButtonText, { color: "#EF4444" }]}>
-              Deletar
-            </Text>
-          )}
-        </TouchableOpacity>
+        {/* Actions */}
+        <View style={styles.productActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.editButton]}
+            onPress={() => onSelectProduct?.(item)}
+          >
+            <Text style={styles.actionButtonText}>Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDelete(item.productId, item.name)}
+            disabled={deleting === item.productId}
+          >
+            {deleting === item.productId ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Text style={[styles.actionButtonText, { color: "#EF4444" }]}>
+                Deletar
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -167,7 +266,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 12,
@@ -175,8 +274,8 @@ const styles = StyleSheet.create({
   addButton: {
     backgroundColor: "#2563EB",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
     alignSelf: "flex-start",
   },
   addButtonText: {
@@ -231,12 +330,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   productCard: {
     backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     overflow: "hidden",
@@ -244,41 +343,85 @@ const styles = StyleSheet.create({
   productContent: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  productInfo: {
+  productLeft: {
     flex: 1,
   },
+  statusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#fff",
+    textTransform: "uppercase",
+  },
   productName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#1F2937",
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  productMetadata: {
+  metadataRow: {
     flexDirection: "row",
-    marginBottom: 6,
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    flexWrap: "wrap",
   },
-  productCategory: {
-    fontSize: 12,
-    color: "#7C3AED",
-    fontWeight: "500",
-    marginRight: 8,
+  metaTag: {
+    fontSize: 11,
+    fontWeight: "600",
+    backgroundColor: "#DBEAFE",
+    color: "#1D4ED8",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
-  productUnit: {
-    fontSize: 12,
+  priceRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 8,
+  },
+  priceColumn: {
+    alignItems: "flex-start",
+  },
+  priceLabel: {
+    fontSize: 10,
     color: "#6B7280",
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
-  productPrice: {
-    fontSize: 14,
+  priceValue: {
+    fontSize: 13,
     fontWeight: "700",
     color: "#059669",
+    marginTop: 2,
+  },
+  estoqueRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  estoqueLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
   },
   arrowIcon: {
     fontSize: 24,
     color: "#D1D5DB",
+    marginLeft: 8,
   },
   productActions: {
     flexDirection: "row",

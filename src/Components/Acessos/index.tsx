@@ -15,6 +15,7 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { useCompany } from "../../contexts/CompanyContext";
 import {
@@ -33,6 +34,7 @@ import {
 } from "../../domains/auth/types";
 import { useAuth } from "../../contexts/AuthContext";
 import { useFuncionario } from "../../contexts/FuncionarioContext";
+import { formatDateBRL } from "../../utils/formatters";
 
 const QUALIFICACOES: Array<{ label: string; value: FuncionarioQualificacao }> =
   [
@@ -47,6 +49,12 @@ const QUALIFICACOES: Array<{ label: string; value: FuncionarioQualificacao }> =
   ];
 
 export const AcessosScreen: React.FC = () => {
+  const { height: screenHeight } = useWindowDimensions();
+  const dropdownMaxHeight = Math.max(
+    180,
+    Math.min(360, Math.floor(screenHeight * 0.4)),
+  );
+
   const { company } = useCompany();
   const { user } = useAuth();
   const { funcionario } = useFuncionario();
@@ -75,6 +83,9 @@ export const AcessosScreen: React.FC = () => {
     relatorios: true,
   });
   const [isFormLoading, setIsFormLoading] = useState(false);
+  const [showQualificacaoOptions, setShowQualificacaoOptions] = useState(false);
+  const [showAdminPermissionOptions, setShowAdminPermissionOptions] =
+    useState(false);
 
   const getAuditActor = (): FuncionarioContexto | null => {
     if (funcionario) return funcionario;
@@ -128,6 +139,8 @@ export const AcessosScreen: React.FC = () => {
     setSenha("");
     setCanAccessAdminCards(false);
     setAdminPermissions({ acessos: true, auditoria: true, relatorios: true });
+    setShowQualificacaoOptions(false);
+    setShowAdminPermissionOptions(false);
     setEditingId(null);
   };
 
@@ -382,7 +395,7 @@ export const AcessosScreen: React.FC = () => {
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Criado em:</Text>
                   <Text style={styles.value}>
-                    {new Date(item.createdAt).toLocaleDateString("pt-BR")}
+                    {formatDateBRL(item.createdAt)}
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
@@ -445,7 +458,7 @@ export const AcessosScreen: React.FC = () => {
             </View>
 
             {/* Form */}
-            <ScrollView style={styles.modalForm}>
+            <ScrollView style={styles.modalForm} nestedScrollEnabled>
               {/* Nome */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Nome *</Text>
@@ -461,32 +474,58 @@ export const AcessosScreen: React.FC = () => {
               {/* Qualificação */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Qualificação *</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={styles.qualificacaoList}>
+                <TouchableOpacity
+                  style={styles.selectTrigger}
+                  onPress={() => setShowQualificacaoOptions((prev) => !prev)}
+                  disabled={isFormLoading}
+                >
+                  <Text style={styles.selectTriggerText}>
+                    {QUALIFICACOES.find((q) => q.value === selectedQualificacao)
+                      ?.label || "Selecione"}
+                  </Text>
+                  <Text style={styles.selectTriggerIcon}>
+                    {showQualificacaoOptions ? "▴" : "▾"}
+                  </Text>
+                </TouchableOpacity>
+
+                {showQualificacaoOptions && (
+                  <ScrollView
+                    style={[
+                      styles.selectOptionsPanel,
+                      { maxHeight: dropdownMaxHeight },
+                    ]}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator
+                    persistentScrollbar
+                    keyboardShouldPersistTaps="handled"
+                  >
                     {QUALIFICACOES.map((qual) => (
                       <TouchableOpacity
                         key={qual.value}
                         style={[
-                          styles.qualBtn,
+                          styles.selectOption,
                           selectedQualificacao === qual.value &&
-                            styles.qualBtnActive,
+                            styles.selectOptionActive,
                         ]}
-                        onPress={() => setSelectedQualificacao(qual.value)}
+                        onPress={() => {
+                          setSelectedQualificacao(qual.value);
+                          setShowQualificacaoOptions(false);
+                        }}
                         disabled={isFormLoading}
                       >
                         <Text
                           style={[
-                            styles.qualBtnText,
+                            styles.selectOptionText,
                             selectedQualificacao === qual.value &&
-                              styles.qualBtnTextActive,
+                              styles.selectOptionTextActive,
                           ]}
                         >
                           {qual.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
-                  </View>
-                </ScrollView>
+                  </ScrollView>
+                )}
               </View>
 
               {/* Email */}
@@ -572,73 +611,103 @@ export const AcessosScreen: React.FC = () => {
               {canAccessAdminCards && (
                 <View style={styles.formGroup}>
                   <Text style={styles.formLabel}>Telas liberadas</Text>
-                  <View style={styles.permissionsGrid}>
-                    <TouchableOpacity
-                      style={[
-                        styles.permissionChip,
-                        adminPermissions.acessos
-                          ? styles.permissionChipOn
-                          : styles.permissionChipOff,
-                      ]}
-                      onPress={() => toggleAdminPermission("acessos")}
-                      disabled={isFormLoading}
-                    >
-                      <Text
-                        style={[
-                          styles.permissionChipText,
-                          adminPermissions.acessos
-                            ? styles.permissionChipTextOn
-                            : styles.permissionChipTextOff,
-                        ]}
-                      >
-                        Acessos
-                      </Text>
-                    </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.selectTrigger}
+                    onPress={() =>
+                      setShowAdminPermissionOptions((prev) => !prev)
+                    }
+                    disabled={isFormLoading}
+                  >
+                    <Text style={styles.selectTriggerText}>
+                      {showAdminPermissionOptions
+                        ? "Ocultar permissões"
+                        : "Selecionar permissões"}
+                    </Text>
+                    <Text style={styles.selectTriggerIcon}>
+                      {showAdminPermissionOptions ? "▴" : "▾"}
+                    </Text>
+                  </TouchableOpacity>
 
-                    <TouchableOpacity
+                  {showAdminPermissionOptions && (
+                    <ScrollView
                       style={[
-                        styles.permissionChip,
-                        adminPermissions.auditoria
-                          ? styles.permissionChipOn
-                          : styles.permissionChipOff,
+                        styles.selectOptionsPanel,
+                        { maxHeight: dropdownMaxHeight },
                       ]}
-                      onPress={() => toggleAdminPermission("auditoria")}
-                      disabled={isFormLoading}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator
+                      persistentScrollbar
+                      keyboardShouldPersistTaps="handled"
                     >
-                      <Text
-                        style={[
-                          styles.permissionChipText,
-                          adminPermissions.auditoria
-                            ? styles.permissionChipTextOn
-                            : styles.permissionChipTextOff,
-                        ]}
-                      >
-                        Histórico
-                      </Text>
-                    </TouchableOpacity>
+                      <View style={styles.permissionsGrid}>
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            adminPermissions.acessos
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() => toggleAdminPermission("acessos")}
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              adminPermissions.acessos
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Acessos
+                          </Text>
+                        </TouchableOpacity>
 
-                    <TouchableOpacity
-                      style={[
-                        styles.permissionChip,
-                        adminPermissions.relatorios
-                          ? styles.permissionChipOn
-                          : styles.permissionChipOff,
-                      ]}
-                      onPress={() => toggleAdminPermission("relatorios")}
-                      disabled={isFormLoading}
-                    >
-                      <Text
-                        style={[
-                          styles.permissionChipText,
-                          adminPermissions.relatorios
-                            ? styles.permissionChipTextOn
-                            : styles.permissionChipTextOff,
-                        ]}
-                      >
-                        Relatórios
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            adminPermissions.auditoria
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() => toggleAdminPermission("auditoria")}
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              adminPermissions.auditoria
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Histórico
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            adminPermissions.relatorios
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() => toggleAdminPermission("relatorios")}
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              adminPermissions.relatorios
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Relatórios
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </ScrollView>
+                  )}
 
                   <Text style={styles.permissionsHint}>
                     Se desmarcar uma tela, ela não aparece no menu de
@@ -901,6 +970,61 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
     color: "#1F2937",
+  },
+  selectTrigger: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+  },
+  selectTriggerText: {
+    fontSize: 14,
+    color: "#111827",
+    fontWeight: "500",
+    marginRight: 8,
+    flexShrink: 1,
+  },
+  selectTriggerIcon: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  selectOptionsPanel: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    padding: 8,
+    zIndex: 50,
+    elevation: 50,
+  },
+  selectOption: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  selectOptionActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#DBEAFE",
+  },
+  selectOptionText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#4B5563",
+  },
+  selectOptionTextActive: {
+    color: "#1D4ED8",
+    fontWeight: "600",
   },
   qualificacaoList: {
     flexDirection: "row",

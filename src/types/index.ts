@@ -54,16 +54,54 @@ export interface Client {
 }
 
 export type ProductCategory = 'Produto' | 'Serviço';
+export type UnidadeMedida = 'UN' | 'CX' | 'PCT' | 'M2' | 'KG' | 'L' | 'H' | 'M';
+export type OrigemMercadoria = 'importacao' | 'nacional' | 'mista';
+export type CategoriaFiscal = 'simples' | 'icms' | 'ipi' | 'iss' | 'isento';
+export type ResponsavelReposicao = 'empresa' | 'funcionario';
+export type StatusProduto = 'ativo' | 'inativo' | 'descontinuado';
 
 export interface Product {
   productId: string;
   companyId: string;
+  
+  // Informações básicas
   name: string;
   description?: string;
   category: ProductCategory;
-  unitPrice: number; // Com 2 decimais
-  unit: string; // 'unidade', 'hora', 'metro', etc
+  
+  // Unidade e medidas
+  unit: UnidadeMedida;
+  
+  // Preços
+  unitPrice: number; // Preço de venda
+  costPrice?: number; // Preço de compra/custo
+  
+  // Estoque
+  currentStock?: number;
+  minimumStock?: number;
+  maximumStock?: number;
+  
+  // Informações adicionais
+  sku?: string;
+  image?: string;
+  
+  // Fiscal
+  originMerchandise?: OrigemMercadoria;
+  hasTax?: boolean;
+  taxCategory?: CategoriaFiscal;
+  generatesInvoice?: boolean;
+  additionalCost?: number; // Embalagem, frete, etc
+  
+  // Reposição
+  replenishmentResponsible?: ResponsavelReposicao;
+  
+  // Status
+  status: StatusProduto;
   active: boolean;
+  
+  // Auditoria
+  createdBy?: string;
+  updatedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +129,8 @@ export interface ServiceOrder {
   completionDate?: Date;
   items: OrderItem[];
   observations?: string;
+  originalTotalValue?: number;
+  discountPercentApplied?: number;
   totalValue: number; // Soma de todos os subitens
   createdAt: Date;
   updatedAt: Date;

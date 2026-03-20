@@ -1,4 +1,4 @@
-import { BaseEntity } from '../base';
+import { BaseEntity } from '../../types/base';
 
 export type NotificacaoTipo = 'ordem' | 'cliente' | 'financeiro' | 'produto' | 'sistema';
 

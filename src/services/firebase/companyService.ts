@@ -89,6 +89,8 @@ export async function createCompany(
       nome: companyData.name || '',
       role: 'admin',
       createdAt: serverTimestamp(),
+      createdBy: userId,
+      ativo: true,
       status: 'active',
     };
     batch.set(usuarioEmpresaRef, usuarioDoc);

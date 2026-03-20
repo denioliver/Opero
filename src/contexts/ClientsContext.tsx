@@ -34,7 +34,7 @@ interface ClientsContextType {
   updateCliente: (
     clienteId: string,
     updates: Partial<
-      Omit<Cliente, "id" | "empresaId" | "createdAt" | "createdBy" | "status">
+      Omit<Cliente, "id" | "empresaId" | "createdAt" | "createdBy">
     >,
   ) => Promise<void>;
   deleteCliente: (clienteId: string) => Promise<void>;
@@ -185,7 +185,7 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
     async (
       clienteId: string,
       updates: Partial<
-        Omit<Cliente, "id" | "empresaId" | "createdAt" | "createdBy" | "status">
+        Omit<Cliente, "id" | "empresaId" | "createdAt" | "createdBy">
       >,
     ) => {
       if (!company?.companyId || !user?.id) {

@@ -1,9 +1,11 @@
-import { BaseEntity } from '../base';
+import { BaseEntity } from '../../types/base';
 import { Timestamp } from 'firebase/firestore';
 
 export type NotaFiscalStatus = 'rascunho' | 'emitida' | 'cancelada' | 'autorizada';
 
-export interface NotaFiscal extends BaseEntity {
+type BaseEntitySemStatus = Omit<BaseEntity, 'status'>;
+
+export interface NotaFiscal extends BaseEntitySemStatus {
   clienteId: string;
   ordemId?: string;
   numero: string;

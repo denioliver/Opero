@@ -150,6 +150,8 @@ export async function createCompany(
       nome: companyData.name || 'Admin',
       role: 'admin',
       createdAt: serverTimestamp() as Timestamp,
+      createdBy: userId,
+      ativo: true,
       status: 'active',
     };
     console.log('[createCompany] Adicionando usuário como admin...');

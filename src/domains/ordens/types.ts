@@ -1,7 +1,9 @@
-import { BaseEntity } from '../base';
+import { BaseEntity } from '../../types/base';
 import { Timestamp } from 'firebase/firestore';
 
 export type OrdemStatus = 'aberta' | 'em_progresso' | 'concluida' | 'cancelada';
+
+type BaseEntitySemStatus = Omit<BaseEntity, 'status'>;
 
 export interface OrdemItem extends BaseEntity {
   ordemId: string;
@@ -12,7 +14,7 @@ export interface OrdemItem extends BaseEntity {
   valorTotal: number;
 }
 
-export interface OrdemServico extends BaseEntity {
+export interface OrdemServico extends BaseEntitySemStatus {
   clienteId: string;
   titulo: string;
   descricao?: string;

@@ -7,12 +7,14 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   deleteDoc,
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { formatCurrencyBRL } from "../utils/formatters";
 
 interface OrdersContextType {
   orders: ServiceOrder[];
@@ -83,9 +85,88 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
+    const roundCurrency = (value: number) =>
+      Math.round((value + Number.EPSILON) * 100) / 100;
+
     try {
-      const docRef = await addDoc(collection(db, "orders"), {
+      const clientRef = doc(
+        db,
+        "empresas",
+        company.companyId,
+        "clientes",
+        order.clientId,
+      );
+      const clientSnap = await getDoc(clientRef);
+
+      if (!clientSnap.exists()) {
+        throw new Error("Cliente não encontrado para esta ordem");
+      }
+
+      const cliente = clientSnap.data() as {
+        status?: "ativo" | "bloqueado" | "inativo";
+        descontoPercentual?: number;
+        limiteCredito?: number;
+        nome?: string;
+      };
+
+      if (cliente.status === "bloqueado") {
+        throw new Error("Cliente bloqueado. Não é possível criar pedidos.");
+      }
+
+      if (cliente.status === "inativo") {
+        throw new Error("Cliente arquivado. Reative antes de vender.");
+      }
+
+      const descontoPercentual = Math.max(
+        0,
+        Math.min(100, cliente.descontoPercentual ?? 0),
+      );
+      const originalTotalValue = roundCurrency(order.totalValue || 0);
+      const discountedTotalValue = roundCurrency(
+        originalTotalValue * (1 - descontoPercentual / 100),
+      );
+
+      const limiteCredito = cliente.limiteCredito ?? 0;
+      if (limiteCredito > 0) {
+        const faturasAbertasQuery = query(
+          collection(db, "invoices"),
+          where("companyId", "==", company.companyId),
+          where("clientId", "==", order.clientId),
+          where("status", "in", ["enviada", "atrasada"]),
+        );
+
+        const faturasAbertasSnap = await getDocs(faturasAbertasQuery);
+        const emAberto = faturasAbertasSnap.docs.reduce((sum, invoiceDoc) => {
+          const invoiceData = invoiceDoc.data() as { totalValue?: number };
+          return sum + (invoiceData.totalValue || 0);
+        }, 0);
+
+        const projectedExposure = roundCurrency(
+          emAberto + discountedTotalValue,
+        );
+        if (projectedExposure > limiteCredito) {
+          const available = roundCurrency(limiteCredito - emAberto);
+          throw new Error(
+            `Limite de crédito excedido. Disponível: ${formatCurrencyBRL(
+              Math.max(0, available),
+            )}`,
+          );
+        }
+      }
+
+      const orderPayload: Omit<
+        ServiceOrder,
+        "orderId" | "createdAt" | "updatedAt"
+      > = {
         ...order,
+        clientName: order.clientName || cliente.nome || order.clientName,
+        originalTotalValue,
+        discountPercentApplied: descontoPercentual,
+        totalValue: discountedTotalValue,
+      };
+
+      const docRef = await addDoc(collection(db, "orders"), {
+        ...orderPayload,
         companyId: company.companyId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -94,7 +175,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       setOrders((prev) => [
         ...prev,
         {
-          ...order,
+          ...orderPayload,
           orderId: docRef.id,
           companyId: company.companyId,
           createdAt: new Date(),

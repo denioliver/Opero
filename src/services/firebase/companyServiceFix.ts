@@ -75,6 +75,8 @@ export async function createCompanyFixed(
       nome: companyData.name,
       role: 'admin',
       createdAt: serverTimestamp() as Timestamp,
+      createdBy: userId,
+      ativo: true,
       status: 'active',
     };
 

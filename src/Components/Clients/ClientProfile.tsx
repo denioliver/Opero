@@ -11,10 +11,66 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { Cliente } from "../../domains/clientes/types";
 import { useClients } from "../../contexts/ClientsContext";
+import { useOrders } from "../../contexts/OrdersContext";
+import { useInvoices } from "../../contexts/InvoicesContext";
+import { Invoice, ServiceOrder } from "../../types";
+import {
+  formatCurrencyBRL,
+  formatDateBRL,
+  formatPercentBRL,
+} from "../../utils/formatters";
+
+const ORDER_STATUS_LABELS: Record<ServiceOrder["status"], string> = {
+  rascunho: "Rascunho",
+  confirmada: "Confirmada",
+  em_andamento: "Em andamento",
+  concluida: "Concluída",
+  faturada: "Faturada",
+};
+
+const ORDER_STATUS_COLORS: Record<ServiceOrder["status"], string> = {
+  rascunho: "#9CA3AF",
+  confirmada: "#3B82F6",
+  em_andamento: "#F59E0B",
+  concluida: "#10B981",
+  faturada: "#8B5CF6",
+};
+
+const INVOICE_STATUS_LABELS: Record<Invoice["status"], string> = {
+  rascunho: "Rascunho",
+  enviada: "Enviada",
+  paga: "Paga",
+  atrasada: "Atrasada",
+};
+
+const INVOICE_STATUS_COLORS: Record<Invoice["status"], string> = {
+  rascunho: "#9CA3AF",
+  enviada: "#3B82F6",
+  paga: "#10B981",
+  atrasada: "#DC2626",
+};
+
+function parseDate(value: any): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value?.toDate === "function") {
+    const parsed = value.toDate();
+    return parsed instanceof Date ? parsed : null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(value: any): string {
+  return formatDateBRL(value);
+}
+
+function formatCurrency(value: number): string {
+  return formatCurrencyBRL(value);
+}
 
 interface ClientProfileProps {
   clienteId: string;
@@ -27,7 +83,9 @@ export function ClientProfile({
   onBack,
   onEdit,
 }: ClientProfileProps) {
-  const { clienteSelecionado, selectCliente, isLoading, error } = useClients();
+  const { clienteSelecionado, selectCliente, isLoading } = useClients();
+  const { orders, loadOrders, isLoadingOrders } = useOrders();
+  const { invoices, loadInvoices, isLoadingInvoices } = useInvoices();
   const [activeTab, setActiveTab] = useState<"dados" | "ordens" | "financeiro">(
     "dados",
   );
@@ -37,6 +95,16 @@ export function ClientProfile({
       console.error("[ClientProfile] Erro ao carregar:", err);
     });
   }, [clienteId, selectCliente]);
+
+  useEffect(() => {
+    loadOrders().catch((err) => {
+      console.error("[ClientProfile] Erro ao carregar ordens:", err);
+    });
+
+    loadInvoices().catch((err) => {
+      console.error("[ClientProfile] Erro ao carregar financeiro:", err);
+    });
+  }, [clienteId]);
 
   if (isLoading) {
     return (
@@ -62,8 +130,29 @@ export function ClientProfile({
   }
 
   const cliente = clienteSelecionado;
+  const clientOrders = orders
+    .filter((order) => order.clientId === cliente.id)
+    .sort(
+      (a, b) =>
+        (parseDate(b.issueDate)?.getTime() || 0) -
+        (parseDate(a.issueDate)?.getTime() || 0),
+    );
+
+  const clientInvoices = invoices
+    .filter((invoice) => invoice.clientId === cliente.id)
+    .sort(
+      (a, b) =>
+        (parseDate(b.issueDate)?.getTime() || 0) -
+        (parseDate(a.issueDate)?.getTime() || 0),
+    );
+
   const tipoLabel = cliente.tipo === "pf" ? "Pessoa Física" : "Pessoa Jurídica";
-  const statusLabel = cliente.status === "ativo" ? "Ativo" : "Arquivado";
+  const statusLabel =
+    cliente.status === "ativo"
+      ? "Ativo"
+      : cliente.status === "bloqueado"
+        ? "Bloqueado"
+        : "Arquivado";
   const documentoLabel = cliente.tipo === "pf" ? "CPF" : "CNPJ";
 
   return (
@@ -147,9 +236,16 @@ export function ClientProfile({
           <DadosTab cliente={cliente} documentoLabel={documentoLabel} />
         )}
 
-        {activeTab === "ordens" && <OrdensTab clienteId={cliente.id} />}
+        {activeTab === "ordens" && (
+          <OrdensTab orders={clientOrders} isLoading={isLoadingOrders} />
+        )}
 
-        {activeTab === "financeiro" && <FinanceiroTab clienteId={cliente.id} />}
+        {activeTab === "financeiro" && (
+          <FinanceiroTab
+            invoices={clientInvoices}
+            isLoading={isLoadingInvoices}
+          />
+        )}
       </ScrollView>
     </View>
   );
@@ -171,6 +267,45 @@ function DadosTab({
         <InfoRow label="Nome Completo" value={cliente.nome} />
         <InfoRow label={documentoLabel} value={cliente.documento} />
         <InfoRow label="Tipo" value={cliente.tipo === "pf" ? "PF" : "PJ"} />
+        {cliente.rg && <InfoRow label="RG" value={cliente.rg} />}
+        {cliente.sexo && (
+          <InfoRow
+            label="Sexo"
+            value={
+              cliente.sexo === "nao_informado"
+                ? "Não informado"
+                : cliente.sexo.charAt(0).toUpperCase() + cliente.sexo.slice(1)
+            }
+          />
+        )}
+      </View>
+
+      {cliente.tipo === "pj" && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Dados Jurídicos</Text>
+          {cliente.razaoSocial ? (
+            <InfoRow label="Razão Social" value={cliente.razaoSocial} />
+          ) : (
+            <Text style={styles.emptyField}>Razão social não informada</Text>
+          )}
+          {cliente.nomeFantasia ? (
+            <InfoRow label="Nome Fantasia" value={cliente.nomeFantasia} />
+          ) : (
+            <Text style={styles.emptyField}>Nome fantasia não informado</Text>
+          )}
+        </View>
+      )}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Política Comercial</Text>
+        <InfoRow
+          label="Limite de Crédito"
+          value={formatCurrency(cliente.limiteCredito || 0)}
+        />
+        <InfoRow
+          label="Desconto Padrão"
+          value={formatPercentBRL(cliente.descontoPercentual || 0, 2)}
+        />
       </View>
 
       {/* Contato */}
@@ -223,25 +358,13 @@ function DadosTab({
 
         <InfoRow
           label="Data de Criação"
-          value={
-            cliente.createdAt instanceof Date
-              ? cliente.createdAt.toLocaleDateString("pt-BR")
-              : new Date(cliente.createdAt.toMillis()).toLocaleDateString(
-                  "pt-BR",
-                )
-          }
+          value={formatDateBRL(cliente.createdAt)}
         />
 
         {cliente.updatedAt && (
           <InfoRow
             label="Última Atualização"
-            value={
-              cliente.updatedAt instanceof Date
-                ? cliente.updatedAt.toLocaleDateString("pt-BR")
-                : new Date(cliente.updatedAt.toMillis()).toLocaleDateString(
-                    "pt-BR",
-                  )
-            }
+            value={formatDateBRL(cliente.updatedAt)}
           />
         )}
       </View>
@@ -249,32 +372,227 @@ function DadosTab({
   );
 }
 
-function OrdensTab({ clienteId }: { clienteId: string }) {
+function OrdensTab({
+  orders,
+  isLoading,
+}: {
+  orders: ServiceOrder[];
+  isLoading: boolean;
+}) {
+  const totalOrdens = orders.length;
+  const totalFaturado = orders
+    .filter(
+      (order) => order.status === "faturada" || order.status === "concluida",
+    )
+    .reduce((sum, order) => sum + (order.totalValue || 0), 0);
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Histórico de Ordens</Text>
-      <View style={styles.emptyStateBox}>
-        <Text style={styles.emptyStateText}>—</Text>
-        <Text style={styles.emptyStateTitle}>Sem ordens registradas</Text>
-        <Text style={styles.emptyStateDescription}>
-          As ordens de serviço deste cliente aparecerão aqui
-        </Text>
-      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="small" color="#2563EB" />
+        </View>
+      ) : orders.length === 0 ? (
+        <View style={styles.emptyStateBox}>
+          <Text style={styles.emptyStateText}>—</Text>
+          <Text style={styles.emptyStateTitle}>Sem ordens registradas</Text>
+          <Text style={styles.emptyStateDescription}>
+            As ordens de serviço deste cliente aparecerão aqui
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Total de ordens</Text>
+              <Text style={styles.summaryValue}>{totalOrdens}</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Valor acumulado</Text>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(totalFaturado)}
+              </Text>
+            </View>
+          </View>
+
+          {orders.map((order) => (
+            <View key={order.orderId} style={styles.historyCard}>
+              <View style={styles.historyHeader}>
+                <View>
+                  <Text style={styles.historyTitle}>{order.orderNumber}</Text>
+                  <Text style={styles.historyMeta}>
+                    Emissão: {formatDate(order.issueDate)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    {
+                      backgroundColor: ORDER_STATUS_COLORS[order.status] + "20",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      { color: ORDER_STATUS_COLORS[order.status] },
+                    ]}
+                  >
+                    {ORDER_STATUS_LABELS[order.status]}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.historyRow}>
+                <Text style={styles.historyKey}>Itens</Text>
+                <Text style={styles.historyVal}>
+                  {order.items?.length || 0}
+                </Text>
+              </View>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyKey}>Total</Text>
+                <Text style={styles.historyVal}>
+                  {formatCurrency(order.totalValue || 0)}
+                </Text>
+              </View>
+              {order.discountPercentApplied ? (
+                <View style={styles.historyRow}>
+                  <Text style={styles.historyKey}>Desconto aplicado</Text>
+                  <Text style={styles.historyVal}>
+                    {formatPercentBRL(order.discountPercentApplied, 2)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </>
+      )}
     </View>
   );
 }
 
-function FinanceiroTab({ clienteId }: { clienteId: string }) {
+function FinanceiroTab({
+  invoices,
+  isLoading,
+}: {
+  invoices: Invoice[];
+  isLoading: boolean;
+}) {
+  const totalFaturado = invoices.reduce(
+    (sum, invoice) => sum + (invoice.totalValue || 0),
+    0,
+  );
+  const totalPago = invoices
+    .filter((invoice) => invoice.status === "paga")
+    .reduce((sum, invoice) => sum + (invoice.totalValue || 0), 0);
+  const totalEmAberto = invoices
+    .filter(
+      (invoice) =>
+        invoice.status === "enviada" || invoice.status === "atrasada",
+    )
+    .reduce((sum, invoice) => sum + (invoice.totalValue || 0), 0);
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Histórico Financeiro</Text>
-      <View style={styles.emptyStateBox}>
-        <Text style={styles.emptyStateText}>—</Text>
-        <Text style={styles.emptyStateTitle}>Sem movimentações</Text>
-        <Text style={styles.emptyStateDescription}>
-          O histórico financeiro deste cliente aparecerá aqui
-        </Text>
-      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="small" color="#2563EB" />
+        </View>
+      ) : invoices.length === 0 ? (
+        <View style={styles.emptyStateBox}>
+          <Text style={styles.emptyStateText}>—</Text>
+          <Text style={styles.emptyStateTitle}>Sem movimentações</Text>
+          <Text style={styles.emptyStateDescription}>
+            O histórico financeiro deste cliente aparecerá aqui
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Faturado</Text>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(totalFaturado)}
+              </Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Pago</Text>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(totalPago)}
+              </Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>Em aberto</Text>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(totalEmAberto)}
+              </Text>
+            </View>
+          </View>
+
+          {invoices.map((invoice) => (
+            <View key={invoice.invoiceId} style={styles.historyCard}>
+              <View style={styles.historyHeader}>
+                <View>
+                  <Text style={styles.historyTitle}>
+                    {invoice.invoiceNumber}
+                  </Text>
+                  <Text style={styles.historyMeta}>
+                    Emissão: {formatDate(invoice.issueDate)} • Venc.:{" "}
+                    {formatDate(invoice.dueDate)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    {
+                      backgroundColor:
+                        INVOICE_STATUS_COLORS[invoice.status] + "20",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      { color: INVOICE_STATUS_COLORS[invoice.status] },
+                    ]}
+                  >
+                    {INVOICE_STATUS_LABELS[invoice.status]}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.historyRow}>
+                <Text style={styles.historyKey}>Subtotal</Text>
+                <Text style={styles.historyVal}>
+                  {formatCurrency(invoice.subtotal || 0)}
+                </Text>
+              </View>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyKey}>Impostos</Text>
+                <Text style={styles.historyVal}>
+                  {formatCurrency(invoice.taxes || 0)}
+                </Text>
+              </View>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyKey}>Desconto</Text>
+                <Text style={styles.historyVal}>
+                  {formatCurrency(invoice.discount || 0)}
+                </Text>
+              </View>
+              <View style={styles.historyRow}>
+                <Text style={styles.historyKey}>Total</Text>
+                <Text style={[styles.historyVal, styles.totalHighlight]}>
+                  {formatCurrency(invoice.totalValue || 0)}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </>
+      )}
     </View>
   );
 }
@@ -444,6 +762,96 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#1F2937",
     lineHeight: 20,
+  },
+  summaryGrid: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  historyCard: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+    marginTop: 8,
+  },
+  historyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 8,
+    marginBottom: 8,
+  },
+  historyTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  historyMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  historyRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    paddingTop: 7,
+    paddingBottom: 4,
+  },
+  historyKey: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  historyVal: {
+    fontSize: 12,
+    color: "#1F2937",
+    fontWeight: "600",
+  },
+  totalHighlight: {
+    color: "#059669",
+    fontWeight: "700",
+  },
+  loadingBox: {
+    paddingVertical: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
   emptyStateBox: {
     backgroundColor: "#F9FAFB",

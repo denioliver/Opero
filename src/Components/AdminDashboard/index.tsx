@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  ScrollView,
 } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -24,6 +23,7 @@ import {
 import { getCompany } from "../../services/firebase/companyService";
 import { UsuarioGlobal } from "../../domains/auth/types";
 import { Company } from "../../types";
+import { formatDateBRL } from "../../utils/formatters";
 
 interface EmpresaItem extends Company {
   proprietario: UsuarioGlobal;
@@ -92,11 +92,14 @@ export const AdminDashboard: React.FC = () => {
           text: "Bloquear",
           onPress: async () => {
             try {
+              setSelectedAction(empresa.proprietario.id);
               await desativarUsuario(empresa.proprietario.id);
               await carregarEmpresas();
               Alert.alert("Sucesso", "Empresa bloqueada");
             } catch (error) {
               Alert.alert("Erro", "Não foi possível bloquear a empresa");
+            } finally {
+              setSelectedAction(null);
             }
           },
           style: "destructive",
@@ -107,11 +110,14 @@ export const AdminDashboard: React.FC = () => {
 
   const handleDesbloquei = async (empresa: EmpresaItem) => {
     try {
+      setSelectedAction(empresa.proprietario.id);
       await ativarUsuario(empresa.proprietario.id);
       await carregarEmpresas();
       Alert.alert("Sucesso", "Empresa desbloqueada");
     } catch (error) {
       Alert.alert("Erro", "Não foi possível desbloquear a empresa");
+    } finally {
+      setSelectedAction(null);
     }
   };
 
@@ -125,11 +131,14 @@ export const AdminDashboard: React.FC = () => {
           text: "Deletar",
           onPress: async () => {
             try {
+              setSelectedAction(empresa.proprietario.id);
               await deletarUsuario(empresa.proprietario.id);
               await carregarEmpresas();
               Alert.alert("Sucesso", "Empresa deletada");
             } catch (error) {
               Alert.alert("Erro", "Não foi possível deletar a empresa");
+            } finally {
+              setSelectedAction(null);
             }
           },
           style: "destructive",
@@ -173,7 +182,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleSection}>
-              <Text style={styles.title}>🔐 Dashboard Admin</Text>
+              <Text style={styles.title}>Painel Administrativo</Text>
               <Text style={styles.subtitle}>Gerenciar todas as empresas</Text>
             </View>
             <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -184,7 +193,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Info do Admin */}
           <View style={styles.adminInfo}>
             <Text style={styles.adminEmail}>{user?.email}</Text>
-            <Text style={styles.adminRole}>👑 Administrador</Text>
+            <Text style={styles.adminRole}>Administrador</Text>
           </View>
 
           {/* Total de Empresas */}
@@ -262,11 +271,7 @@ export const AdminDashboard: React.FC = () => {
             <View style={styles.dataRow}>
               <Text style={styles.label}>Data de Criação:</Text>
               <Text style={styles.value}>
-                {empresa.createdAt?.toDate
-                  ? new Date(empresa.createdAt.toDate()).toLocaleDateString(
-                      "pt-BR",
-                    )
-                  : new Date(empresa.createdAt).toLocaleDateString("pt-BR")}
+                {formatDateBRL(empresa.createdAt)}
               </Text>
             </View>
           </View>
@@ -281,14 +286,20 @@ export const AdminDashboard: React.FC = () => {
                   `${empresa.name}\nCNPJ: ${empresa.cnpj}`,
                 )
               }
+              disabled={selectedAction === empresa.proprietario.id}
             >
-              <Text style={styles.btnText}>Detalhes</Text>
+              <Text style={styles.btnText}>
+                {selectedAction === empresa.proprietario.id
+                  ? "Aguarde..."
+                  : "Detalhes"}
+              </Text>
             </TouchableOpacity>
 
             {empresa.proprietario.ativo ? (
               <TouchableOpacity
                 style={[styles.btn, styles.btnWarning]}
                 onPress={() => handleBloqueio(empresa)}
+                disabled={selectedAction === empresa.proprietario.id}
               >
                 <Text style={styles.btnText}>Bloquear</Text>
               </TouchableOpacity>
@@ -296,6 +307,7 @@ export const AdminDashboard: React.FC = () => {
               <TouchableOpacity
                 style={[styles.btn, styles.btnSuccess]}
                 onPress={() => handleDesbloquei(empresa)}
+                disabled={selectedAction === empresa.proprietario.id}
               >
                 <Text style={styles.btnText}>Desbloquear</Text>
               </TouchableOpacity>
@@ -304,6 +316,7 @@ export const AdminDashboard: React.FC = () => {
             <TouchableOpacity
               style={[styles.btn, styles.btnDanger]}
               onPress={() => handleDeletar(empresa)}
+              disabled={selectedAction === empresa.proprietario.id}
             >
               <Text style={styles.btnText}>Deletar</Text>
             </TouchableOpacity>

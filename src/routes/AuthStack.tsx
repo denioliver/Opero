@@ -11,11 +11,7 @@ export default function AuthStack() {
         headerShown: false,
       }}
     >
-      <Stack.Screen
-        name="Login"
-        component={Login}
-        options={{ animationEnabled: false }}
-      />
+      <Stack.Screen name="Login" component={Login} />
     </Stack.Navigator>
   );
 }

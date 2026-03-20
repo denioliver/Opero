@@ -105,7 +105,7 @@ export const Login: React.FC = () => {
           <View style={styles.infoBox}>
             <Text style={styles.infoTitle}>Acesso por Email</Text>
             <Text style={styles.infoText}>Administrador ou Proprietário</Text>
-            <Text style={styles.infoTitle} style={{ marginTop: 8 }}>
+            <Text style={[styles.infoTitle, { marginTop: 8 }]}>
               Acesso por Nome
             </Text>
             <Text style={styles.infoText}>Funcionário da empresa</Text>

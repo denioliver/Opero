@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,17 +10,24 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { useCompany } from "../../contexts/CompanyContext";
+import { useClients } from "../../contexts/ClientsContext";
+import { useSuppliers } from "../../contexts/SuppliersContext";
+import { useProducts } from "../../contexts/ProductsContext";
+import { useOrders } from "../../contexts/OrdersContext";
+import { useInvoices } from "../../contexts/InvoicesContext";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 
 type RootStackParamList = {
   Dashboard: undefined;
   ClientsList: undefined;
+  SuppliersList: undefined;
   ProductsList: undefined;
   OrdersList: undefined;
   InvoicesList: undefined;
   Acessos: undefined;
   Relatorios: undefined;
+  Configuracoes: undefined;
   Auditoria:
     | {
         statusKey?: "ordens" | "clientes" | "produtos" | "nfs";
@@ -43,6 +50,11 @@ export const Home: React.FC = () => {
     isLoading: funcionarioLoading,
   } = useFuncionario();
   const { company } = useCompany();
+  const { clientes, loadClientes } = useClients();
+  const { fornecedores, loadFornecedores } = useSuppliers();
+  const { products, loadProducts } = useProducts();
+  const { orders, loadOrders } = useOrders();
+  const { invoices, loadInvoices } = useInvoices();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [loggingOut, setLoggingOut] = useState(false);
   const isLoading = authLoading || funcionarioLoading;
@@ -54,6 +66,20 @@ export const Home: React.FC = () => {
   const isProprietario = user?.role === "users";
   const canSeeAdminCards = isProprietario || !!funcionario?.canAccessAdminCards;
 
+  useEffect(() => {
+    if (!company?.companyId) return;
+
+    Promise.all([
+      loadClientes(),
+      loadFornecedores(),
+      loadProducts(),
+      loadOrders(),
+      loadInvoices(),
+    ]).catch((error) => {
+      console.error("[Home] Erro ao carregar indicadores:", error);
+    });
+  }, [company?.companyId]);
+
   const canAccessAdminFeature = (
     feature: "acessos" | "auditoria" | "relatorios",
   ) => {
@@ -61,16 +87,6 @@ export const Home: React.FC = () => {
     if (!funcionario?.canAccessAdminCards) return false;
     if (!funcionario.adminPermissions) return true; // compatibilidade com cadastros antigos
     return !!funcionario.adminPermissions[feature];
-  };
-
-  const handleStatusPress = (
-    statusKey: "ordens" | "clientes" | "produtos" | "nfs",
-    statusLabel: string,
-  ) => {
-    navigation.navigate("Auditoria", {
-      statusKey,
-      statusLabel,
-    });
   };
 
   const handleLogout = async () => {
@@ -97,6 +113,13 @@ export const Home: React.FC = () => {
         navigation.navigate("ClientsList" as keyof RootStackParamList),
     },
     {
+      id: "suppliers",
+      icon: "FOR",
+      label: "Fornecedores",
+      onPress: () =>
+        navigation.navigate("SuppliersList" as keyof RootStackParamList),
+    },
+    {
       id: "products",
       icon: "PRD",
       label: "Produtos/Serviços",
@@ -116,6 +139,13 @@ export const Home: React.FC = () => {
       label: "Notas Fiscais",
       onPress: () =>
         navigation.navigate("InvoicesList" as keyof RootStackParamList),
+    },
+    {
+      id: "settings",
+      icon: "CFG",
+      label: "Configurações",
+      onPress: () =>
+        navigation.navigate("Configuracoes" as keyof RootStackParamList),
     },
   ];
 
@@ -147,10 +177,31 @@ export const Home: React.FC = () => {
   );
 
   const statusItems = [
-    { id: "ordens", label: "Ordens", value: "0" },
-    { id: "clientes", label: "Clientes", value: "0" },
-    { id: "produtos", label: "Produtos", value: "0" },
-    { id: "nfs", label: "NFs", value: "0" },
+    {
+      id: "ordens",
+      label: "Ordens",
+      value: String(orders.length),
+    },
+    {
+      id: "clientes",
+      label: "Clientes",
+      value: String(clientes.length),
+    },
+    {
+      id: "fornecedores",
+      label: "Fornecedores",
+      value: String(fornecedores.length),
+    },
+    {
+      id: "produtos",
+      label: "Produtos",
+      value: String(products.length),
+    },
+    {
+      id: "nfs",
+      label: "NFs",
+      value: String(invoices.length),
+    },
   ];
 
   if (isLoading) {
@@ -172,6 +223,7 @@ export const Home: React.FC = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Opero</Text>
+          <Text style={styles.subtitle}>Painel de Gestão</Text>
         </View>
         <TouchableOpacity
           style={[
@@ -196,7 +248,7 @@ export const Home: React.FC = () => {
       >
         {/* Welcome Card */}
         <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeText}>Bem-vindo</Text>
+          <Text style={styles.welcomeText}>Sessão ativa</Text>
           <Text style={styles.userName}>{ownerDisplayName}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
           {company && (
@@ -212,24 +264,19 @@ export const Home: React.FC = () => {
 
         {/* Status Discreto */}
         <View style={styles.statusInlineSection}>
-          <Text style={styles.statusInlineTitle}>Status</Text>
-          <View style={styles.statusInlineRow}>
+          <Text style={styles.statusInlineTitle}>Indicadores rápidos</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.statusInlineRow}
+          >
             {statusItems.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.statusInlineItem}
-                onPress={() =>
-                  handleStatusPress(
-                    item.id as "ordens" | "clientes" | "produtos" | "nfs",
-                    item.label,
-                  )
-                }
-              >
+              <View key={item.id} style={styles.statusInlineItem}>
                 <Text style={styles.statusInlineValue}>{item.value}</Text>
                 <Text style={styles.statusInlineLabel}>{item.label}</Text>
-              </TouchableOpacity>
+              </View>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* Menu Grid */}
@@ -294,6 +341,11 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     marginBottom: 2,
   },
+  subtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
   logoutButtonHeader: {
     backgroundColor: "#FEE2E2",
     borderRadius: 6,
@@ -315,10 +367,10 @@ const styles = StyleSheet.create({
   },
   welcomeCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 12,
-    borderLeftWidth: 2,
+    borderLeftWidth: 3,
     borderLeftColor: "#2563EB",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -327,9 +379,12 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   welcomeText: {
-    fontSize: 12,
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    fontWeight: "700",
     color: "#6B7280",
-    marginBottom: 2,
+    marginBottom: 4,
   },
   userName: {
     fontSize: 18,
@@ -338,9 +393,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   userEmail: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#6B7280",
-    marginBottom: 8,
+    marginBottom: 10,
   },
   companyInfoContainer: {
     paddingTop: 8,
@@ -375,26 +430,27 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statusInlineTitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#6B7280",
-    marginBottom: 6,
+    marginBottom: 8,
     fontWeight: "600",
   },
   statusInlineRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 8,
+    paddingRight: 4,
   },
   statusInlineItem: {
-    width: "24%",
+    width: 108,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: 8,
-    paddingVertical: 6,
+    borderRadius: 10,
+    paddingVertical: 8,
     alignItems: "center",
   },
   statusInlineValue: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
     color: "#1F2937",
     lineHeight: 16,
@@ -414,12 +470,12 @@ const styles = StyleSheet.create({
   menuItem: {
     width: "48%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    minHeight: 84,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    minHeight: 90,
     alignItems: "center",
     justifyContent: "center",
   },

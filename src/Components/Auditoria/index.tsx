@@ -22,11 +22,32 @@ import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { useCompany } from "../../contexts/CompanyContext";
 import { listarAuditoria } from "../../services/firebase/auditoriaService";
 import { AuditoriaLog } from "../../domains/auth/types";
+import { formatDateTimeBRL } from "../../utils/formatters";
 
 type AuditoriaRouteParams = {
   statusKey?: "ordens" | "clientes" | "produtos" | "nfs";
   statusLabel?: string;
 };
+
+const ACAO_SUGESTOES = [
+  "criar_funcionario",
+  "editar_funcionario",
+  "desativar_funcionario",
+  "criar_cliente",
+  "editar_cliente",
+  "criar_produto",
+  "editar_produto",
+  "criar_ordem",
+  "editar_ordem",
+];
+
+const COLECAO_SUGESTOES = [
+  "funcionarios",
+  "clientes",
+  "produtos",
+  "ordens",
+  "auditoria",
+];
 
 export const AuditoriaScreen: React.FC = () => {
   const { user } = useAuth();
@@ -46,6 +67,8 @@ export const AuditoriaScreen: React.FC = () => {
   const [filterResponsavel, setFilterResponsavel] = useState("");
   const [filterDataInicio, setFilterDataInicio] = useState("");
   const [filterDataFim, setFilterDataFim] = useState("");
+  const [showQuickFilters, setShowQuickFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const isProprietario = user?.role === "users";
   const canAccessThisScreen =
@@ -120,6 +143,21 @@ export const AuditoriaScreen: React.FC = () => {
     return date;
   };
 
+  const formatBrDate = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const applyQuickDateRange = (days: number) => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - days);
+    setFilterDataInicio(formatBrDate(startDate));
+    setFilterDataFim(formatBrDate(endDate));
+  };
+
   const carregarAuditoria = async () => {
     if (!company) return;
     try {
@@ -185,14 +223,7 @@ export const AuditoriaScreen: React.FC = () => {
   };
 
   const formatarData = (date: Date) => {
-    return new Date(date).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    return formatDateTimeBRL(date);
   };
 
   const getActionIcon = (acao: string) => {
@@ -273,59 +304,173 @@ export const AuditoriaScreen: React.FC = () => {
 
       {/* Filtros */}
       <View style={styles.filtersBox}>
-        <View style={styles.filtersRow}>
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Ação</Text>
-            <TextInput
-              style={styles.filterInput}
-              placeholder="ex: criar_funcionario"
-              value={filterAcao}
-              onChangeText={setFilterAcao}
-            />
-          </View>
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Coleção</Text>
-            <TextInput
-              style={styles.filterInput}
-              placeholder="ex: funcionarios"
-              value={filterColecao}
-              onChangeText={setFilterColecao}
-            />
-          </View>
-        </View>
+        <TouchableOpacity
+          style={styles.quickFilterToggle}
+          onPress={() => setShowQuickFilters((prev) => !prev)}
+        >
+          <Text style={styles.quickFilterToggleText}>Filtros rápidos</Text>
+          <Text style={styles.quickFilterToggleIcon}>
+            {showQuickFilters ? "▴" : "▾"}
+          </Text>
+        </TouchableOpacity>
 
-        <View style={styles.filtersRow}>
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Responsável</Text>
-            <TextInput
-              style={styles.filterInput}
-              placeholder="nome/email"
-              value={filterResponsavel}
-              onChangeText={setFilterResponsavel}
-            />
-          </View>
-        </View>
+        {showQuickFilters && (
+          <View style={styles.quickFiltersPanel}>
+            <Text style={styles.quickFiltersLabel}>Ação</Text>
+            <View style={styles.quickChipsRow}>
+              {ACAO_SUGESTOES.map((acao) => (
+                <TouchableOpacity
+                  key={acao}
+                  style={[
+                    styles.quickChip,
+                    filterAcao === acao && styles.quickChipActive,
+                  ]}
+                  onPress={() =>
+                    setFilterAcao((prev) => (prev === acao ? "" : acao))
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.quickChipText,
+                      filterAcao === acao && styles.quickChipTextActive,
+                    ]}
+                  >
+                    {acao}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        <View style={styles.filtersRow}>
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Data início</Text>
-            <TextInput
-              style={styles.filterInput}
-              placeholder="dd/mm/aaaa"
-              value={filterDataInicio}
-              onChangeText={setFilterDataInicio}
-            />
+            <Text style={styles.quickFiltersLabel}>Coleção</Text>
+            <View style={styles.quickChipsRow}>
+              {COLECAO_SUGESTOES.map((colecao) => (
+                <TouchableOpacity
+                  key={colecao}
+                  style={[
+                    styles.quickChip,
+                    filterColecao === colecao && styles.quickChipActive,
+                  ]}
+                  onPress={() =>
+                    setFilterColecao((prev) =>
+                      prev === colecao ? "" : colecao,
+                    )
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.quickChipText,
+                      filterColecao === colecao && styles.quickChipTextActive,
+                    ]}
+                  >
+                    {colecao}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.quickFiltersLabel}>Período</Text>
+            <View style={styles.quickChipsRow}>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => applyQuickDateRange(0)}
+              >
+                <Text style={styles.quickChipText}>Hoje</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => applyQuickDateRange(7)}
+              >
+                <Text style={styles.quickChipText}>7 dias</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => applyQuickDateRange(30)}
+              >
+                <Text style={styles.quickChipText}>30 dias</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickChip}
+                onPress={() => {
+                  setFilterAcao("");
+                  setFilterColecao("");
+                  setFilterResponsavel("");
+                  setFilterDataInicio("");
+                  setFilterDataFim("");
+                }}
+              >
+                <Text style={styles.quickChipText}>Limpar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.filterField}>
-            <Text style={styles.filterLabel}>Data fim</Text>
-            <TextInput
-              style={styles.filterInput}
-              placeholder="dd/mm/aaaa"
-              value={filterDataFim}
-              onChangeText={setFilterDataFim}
-            />
-          </View>
-        </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.quickFilterToggle}
+          onPress={() => setShowAdvancedFilters((prev) => !prev)}
+        >
+          <Text style={styles.quickFilterToggleText}>Filtros avançados</Text>
+          <Text style={styles.quickFilterToggleIcon}>
+            {showAdvancedFilters ? "▴" : "▾"}
+          </Text>
+        </TouchableOpacity>
+
+        {showAdvancedFilters && (
+          <>
+            <View style={styles.filtersRow}>
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Ação</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="ex: criar_funcionario"
+                  value={filterAcao}
+                  onChangeText={setFilterAcao}
+                />
+              </View>
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Coleção</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="ex: funcionarios"
+                  value={filterColecao}
+                  onChangeText={setFilterColecao}
+                />
+              </View>
+            </View>
+
+            <View style={styles.filtersRow}>
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Responsável</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="nome/email"
+                  value={filterResponsavel}
+                  onChangeText={setFilterResponsavel}
+                />
+              </View>
+            </View>
+
+            <View style={styles.filtersRow}>
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Data início</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="dd/mm/aaaa"
+                  value={filterDataInicio}
+                  onChangeText={setFilterDataInicio}
+                />
+              </View>
+              <View style={styles.filterField}>
+                <Text style={styles.filterLabel}>Data fim</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="dd/mm/aaaa"
+                  value={filterDataFim}
+                  onChangeText={setFilterDataFim}
+                />
+              </View>
+            </View>
+          </>
+        )}
       </View>
 
       {/* Tabela */}
@@ -597,6 +742,70 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#111827",
     backgroundColor: "#FFFFFF",
+  },
+  quickFilterToggle: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+    backgroundColor: "#F9FAFB",
+  },
+  quickFilterToggleText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  quickFilterToggleIcon: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  quickFiltersPanel: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    padding: 10,
+    marginBottom: 10,
+  },
+  quickFiltersLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4B5563",
+    marginBottom: 6,
+    marginTop: 2,
+  },
+  quickChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+  quickChip: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 999,
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  quickChipActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#DBEAFE",
+  },
+  quickChipText: {
+    fontSize: 12,
+    color: "#4B5563",
+    fontWeight: "500",
+  },
+  quickChipTextActive: {
+    color: "#1D4ED8",
+    fontWeight: "600",
   },
   tableWrap: {
     minWidth: 820,

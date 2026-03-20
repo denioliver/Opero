@@ -14,7 +14,7 @@ export default function CompanyRegisterStack() {
       <Stack.Screen
         name="CompanyRegister"
         component={CompanyRegister}
-        options={{ gestureEnabled: false, animationEnabled: false }}
+        options={{ gestureEnabled: false }}
       />
     </Stack.Navigator>
   );

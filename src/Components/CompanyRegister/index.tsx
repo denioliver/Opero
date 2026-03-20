@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -15,18 +15,20 @@ import { useCompany } from "../../contexts/CompanyContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Company } from "../../types";
 import { useNavigation } from "@react-navigation/native";
+import { validateCorporateEmail } from "../../utils/cnpjValidation";
 import {
+  fetchAddressByCEP,
   fetchCNPJData,
   validateCNPJFormat,
-  validateCorporateEmail,
-} from "../../utils/cnpjValidation";
+  validateCPFFormat,
+} from "../../utils/brazilData";
 import {
   formatCPF,
   formatCNPJ,
   formatPhone,
   formatZipCode,
   cleanFormat,
-} from "../../utils/formatting";
+} from "../../utils/formatters";
 import {
   validateCPFWithName,
   validateCNPJWithName,
@@ -61,8 +63,15 @@ export function CompanyRegister() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isFetchingCNPJ, setIsFetchingCNPJ] = useState(false);
+  const [isFetchingCEP, setIsFetchingCEP] = useState(false);
   const [isValidatingCPF, setIsValidatingCPF] = useState(false);
   const [isValidatingCNPJ, setIsValidatingCNPJ] = useState(false);
+  const lastAutoCnpjRef = useRef("");
+  const lastAutoCepRef = useRef("");
+  const lastAutoCpfRef = useRef("");
+
+  const ownerDocumentClean = formData.ownerDocument.replace(/\D/g, "");
+  const cnpjClean = formData.cnpj.replace(/\D/g, "");
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -83,19 +92,40 @@ export function CompanyRegister() {
     }
     if (!formData.zipCode.trim()) newErrors.zipCode = "CEP é obrigatório";
 
+    if (
+      ownerDocumentClean.length !== 11 ||
+      !validateCPFFormat(ownerDocumentClean)
+    ) {
+      newErrors.ownerDocument = "CPF inválido";
+    }
+
+    if (cnpjClean.length !== 14 || !validateCNPJFormat(cnpjClean)) {
+      newErrors.cnpj = "CNPJ inválido";
+    }
+
+    if (!/^\d{5}-\d{3}$/.test(formData.zipCode)) {
+      newErrors.zipCode = "CEP inválido. Use 00000-000";
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = "E-mail inválido";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFetchCNPJData = async (cnpj: string) => {
+  const handleFetchCNPJData = async (cnpj: string, silent = false) => {
     const cleanCNPJ = cnpj.replace(/\D/g, "");
 
     if (cleanCNPJ.length !== 14) {
-      return; // Esperar usuário terminar de digitar
+      return;
     }
 
     if (!validateCNPJFormat(cleanCNPJ)) {
-      Alert.alert("CNPJ Inválido", "O CNPJ digitado não é válido");
+      if (!silent) {
+        Alert.alert("CNPJ Inválido", "O CNPJ digitado não é válido");
+      }
       return;
     }
 
@@ -119,17 +149,20 @@ export function CompanyRegister() {
           : prev.zipCode,
       }));
 
-      // Validar CPF e CNPJ após carregar dados
       setTimeout(() => {
         handleValidateCPF();
         handleValidateCNPJ();
       }, 100);
 
-      Alert.alert("Sucesso", "Dados do CNPJ carregados com sucesso!");
+      if (!silent) {
+        Alert.alert("Sucesso", "Dados do CNPJ carregados com sucesso!");
+      }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro ao buscar CNPJ";
-      Alert.alert("Erro", message);
+      if (!silent) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao buscar CNPJ";
+        Alert.alert("Erro", message);
+      }
     } finally {
       setIsFetchingCNPJ(false);
     }
@@ -190,6 +223,87 @@ export function CompanyRegister() {
       setIsValidatingCNPJ(false);
     }
   };
+
+  const handleFetchCEPData = async (cep: string, silent = false) => {
+    const cleanCEP = cep.replace(/\D/g, "");
+
+    if (cleanCEP.length !== 8) {
+      return;
+    }
+
+    try {
+      setIsFetchingCEP(true);
+      const cepData = await fetchAddressByCEP(cleanCEP);
+
+      setFormData((prev) => ({
+        ...prev,
+        zipCode: formatZipCode(cleanCEP),
+        street: prev.street.trim()
+          ? prev.street
+          : cepData.street || prev.street,
+        complement: prev.complement.trim()
+          ? prev.complement
+          : cepData.complement || prev.complement,
+        city: prev.city.trim() ? prev.city : cepData.city || prev.city,
+        state: prev.state.trim() ? prev.state : cepData.state || prev.state,
+      }));
+    } catch (error) {
+      if (!silent) {
+        Alert.alert(
+          "Erro",
+          "Não foi possível carregar o endereço pelo CEP informado.",
+        );
+      }
+    } finally {
+      setIsFetchingCEP(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!formData.ownerName.trim()) return;
+
+    const cleanCPF = formData.ownerDocument.replace(/\D/g, "");
+    if (cleanCPF.length !== 11 || !validateCPFFormat(cleanCPF)) {
+      return;
+    }
+
+    if (lastAutoCpfRef.current === `${cleanCPF}|${formData.ownerName.trim()}`) {
+      return;
+    }
+
+    lastAutoCpfRef.current = `${cleanCPF}|${formData.ownerName.trim()}`;
+    handleValidateCPF();
+  }, [formData.ownerDocument, formData.ownerName]);
+
+  useEffect(() => {
+    const cleanCNPJ = formData.cnpj.replace(/\D/g, "");
+
+    if (cleanCNPJ.length !== 14 || !validateCNPJFormat(cleanCNPJ)) {
+      return;
+    }
+
+    if (lastAutoCnpjRef.current === cleanCNPJ) {
+      return;
+    }
+
+    lastAutoCnpjRef.current = cleanCNPJ;
+    handleFetchCNPJData(formData.cnpj, true);
+  }, [formData.cnpj]);
+
+  useEffect(() => {
+    const cleanCEP = formData.zipCode.replace(/\D/g, "");
+
+    if (cleanCEP.length !== 8) {
+      return;
+    }
+
+    if (lastAutoCepRef.current === cleanCEP) {
+      return;
+    }
+
+    lastAutoCepRef.current = cleanCEP;
+    handleFetchCEPData(formData.zipCode, true);
+  }, [formData.zipCode]);
 
   const handleSubmit = async () => {
     if (!validateForm()) {
@@ -552,17 +666,25 @@ export function CompanyRegister() {
 
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Label text="CEP *" />
-              <TextInput
-                style={[
-                  styles.input,
-                  errors.zipCode ? styles.inputError : undefined,
-                ]}
-                placeholder="00000-000"
-                value={formData.zipCode}
-                onChangeText={(text) => updateField("zipCode", text)}
-                editable={!isLoadingCompany}
-                keyboardType="numeric"
-              />
+              <View style={{ position: "relative" }}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    errors.zipCode ? styles.inputError : undefined,
+                  ]}
+                  placeholder="00000-000"
+                  value={formData.zipCode}
+                  onChangeText={(text) => updateField("zipCode", text)}
+                  onBlur={() => handleFetchCEPData(formData.zipCode)}
+                  editable={!isLoadingCompany && !isFetchingCEP}
+                  keyboardType="numeric"
+                />
+                {isFetchingCEP && (
+                  <View style={{ position: "absolute", right: 12, top: 12 }}>
+                    <ActivityIndicator size="small" color="#2563EB" />
+                  </View>
+                )}
+              </View>
               {errors.zipCode && <ErrorText text={errors.zipCode} />}
             </View>
           </View>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 import { Product } from "../types";
 import { useCompany } from "./CompanyContext";
 import { db } from "../config/firebase";
@@ -13,11 +13,36 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import {
+  MovimentacaoEstoque,
+  TipoMovimentacao,
+  AlertaEstoque,
+  RelatorioEstoque,
+  RelatorioProdutosMaisVendidos,
+  RelatorioGiroEstoque,
+} from "../domains/produtos/movimentacao";
+import * as productService from "../services/firebase/productService";
 
 interface ProductsContextType {
+  // Produtos
   products: Product[];
   isLoadingProducts: boolean;
   productsError: string | null;
+
+  // Alertas
+  alertas: AlertaEstoque[];
+  isLoadingAlertas: boolean;
+
+  // Histórico
+  historicoMovimentacao: MovimentacaoEstoque[];
+  isLoadingHistorico: boolean;
+
+  // Relatórios
+  relatorioEstoque: RelatorioEstoque[];
+  relatorioProdutosMaisVendidos: RelatorioProdutosMaisVendidos[];
+  relatorioGiroEstoque: RelatorioGiroEstoque[];
+
+  // Métodos CRUD
   loadProducts: () => Promise<void>;
   addProduct: (
     product: Omit<Product, "productId" | "createdAt" | "updatedAt">,
@@ -27,6 +52,26 @@ interface ProductsContextType {
     updates: Partial<Product>,
   ) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
+
+  // Métodos de estoque
+  registrarMovimentacao: (
+    productId: string,
+    tipo: TipoMovimentacao,
+    quantidade: number,
+    dados: any,
+  ) => Promise<void>;
+  obterHistorico: (productId: string) => Promise<void>;
+
+  // Métodos de alertas
+  loadAlertas: () => Promise<void>;
+  marcarAlertaComoLido: (alertaId: string) => Promise<void>;
+
+  // Métodos de relatórios
+  gerarRelatorioEstoque: () => Promise<void>;
+  gerarRelatorioProdutosMaisVendidos: (dias?: number) => Promise<void>;
+  gerarRelatorioGiroEstoque: () => Promise<void>;
+
+  // Utilidade
   clearProductsError: () => void;
 }
 
@@ -36,11 +81,33 @@ const ProductsContext = createContext<ProductsContextType | undefined>(
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
+
+  // Produtos
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
 
-  const loadProducts = async () => {
+  // Alertas
+  const [alertas, setAlertas] = useState<AlertaEstoque[]>([]);
+  const [isLoadingAlertas, setIsLoadingAlertas] = useState(false);
+
+  // Histórico
+  const [historicoMovimentacao, setHistoricoMovimentacao] = useState<
+    MovimentacaoEstoque[]
+  >([]);
+  const [isLoadingHistorico, setIsLoadingHistorico] = useState(false);
+
+  // Relatórios
+  const [relatorioEstoque, setRelatorioEstoque] = useState<RelatorioEstoque[]>(
+    [],
+  );
+  const [relatorioProdutosMaisVendidos, setRelatorioProdutosMaisVendidos] =
+    useState<RelatorioProdutosMaisVendidos[]>([]);
+  const [relatorioGiroEstoque, setRelatorioGiroEstoque] = useState<
+    RelatorioGiroEstoque[]
+  >([]);
+
+  const loadProducts = useCallback(async () => {
     if (!company?.companyId) return;
 
     try {
@@ -70,7 +137,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoadingProducts(false);
     }
-  };
+  }, [company?.companyId]);
 
   const addProduct = async (
     product: Omit<Product, "productId" | "createdAt" | "updatedAt">,
@@ -139,18 +206,167 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const clearProductsError = () => setProductsError(null);
+  const registrarMovimentacao = async (
+    productId: string,
+    tipo: TipoMovimentacao,
+    quantidade: number,
+    dados: any,
+  ) => {
+    if (!company?.companyId) throw new Error("Empresa não encontrada");
+
+    try {
+      await productService.registrarMovimentacaoEstoque(
+        company.companyId,
+        productId,
+        tipo,
+        quantidade,
+        "current-user", // TODO: Obter do contexto de autenticação
+        dados,
+      );
+
+      // Recarregar produtos após movimentação
+      await loadProducts();
+    } catch (error) {
+      console.error("[ProductsContext] Erro ao registrar movimentação:", error);
+      throw error;
+    }
+  };
+
+  const obterHistorico = async (productId: string) => {
+    try {
+      setIsLoadingHistorico(true);
+      const historico =
+        await productService.obterHistoricoMovimentacao(productId);
+      setHistoricoMovimentacao(historico);
+    } catch (error) {
+      console.error("[ProductsContext] Erro ao obter histórico:", error);
+      throw error;
+    } finally {
+      setIsLoadingHistorico(false);
+    }
+  };
+
+  const loadAlertas = useCallback(async () => {
+    if (!company?.companyId) return;
+
+    try {
+      setIsLoadingAlertas(true);
+      const alertas = await productService.obterAlertas(company.companyId);
+      setAlertas(alertas);
+    } catch (error) {
+      console.error("[ProductsContext] Erro ao carregar alertas:", error);
+    } finally {
+      setIsLoadingAlertas(false);
+    }
+  }, [company?.companyId]);
+
+  const marcarAlertaComoLido = async (alertaId: string) => {
+    try {
+      await productService.marcarAlertaComoLido(alertaId);
+      setAlertas((prev) =>
+        prev.map((a) => (a.alertaId === alertaId ? { ...a, lido: true } : a)),
+      );
+    } catch (error) {
+      console.error("[ProductsContext] Erro ao marcar alerta:", error);
+      throw error;
+    }
+  };
+
+  const gerarRelatorioEstoque = async () => {
+    if (!company?.companyId) return;
+
+    try {
+      const relatorio = await productService.obterRelatorioEstoque(
+        company.companyId,
+      );
+      setRelatorioEstoque(relatorio);
+    } catch (error) {
+      console.error(
+        "[ProductsContext] Erro ao gerar relatório de estoque:",
+        error,
+      );
+      throw error;
+    }
+  };
+
+  const gerarRelatorioProdutosMaisVendidos = async (dias: number = 30) => {
+    if (!company?.companyId) return;
+
+    try {
+      const relatorio = await productService.obterRelatorioProdutosMaisVendidos(
+        company.companyId,
+        dias,
+      );
+      setRelatorioProdutosMaisVendidos(relatorio);
+    } catch (error) {
+      console.error(
+        "[ProductsContext] Erro ao gerar relatório de vendas:",
+        error,
+      );
+      throw error;
+    }
+  };
+
+  const gerarRelatorioGiroEstoque = async () => {
+    if (!company?.companyId) return;
+
+    try {
+      const relatorio = await productService.obterRelatorioGiroEstoque(
+        company.companyId,
+      );
+      setRelatorioGiroEstoque(relatorio);
+    } catch (error) {
+      console.error(
+        "[ProductsContext] Erro ao gerar relatório de giro:",
+        error,
+      );
+      throw error;
+    }
+  };
+
+  const clearProductsError = useCallback(() => setProductsError(null), []);
 
   return (
     <ProductsContext.Provider
       value={{
+        // Produtos
         products,
         isLoadingProducts,
         productsError,
+
+        // Alertas
+        alertas,
+        isLoadingAlertas,
+
+        // Histórico
+        historicoMovimentacao,
+        isLoadingHistorico,
+
+        // Relatórios
+        relatorioEstoque,
+        relatorioProdutosMaisVendidos,
+        relatorioGiroEstoque,
+
+        // Métodos CRUD
         loadProducts,
         addProduct,
         updateProduct,
         deleteProduct,
+
+        // Métodos de estoque
+        registrarMovimentacao,
+        obterHistorico,
+
+        // Métodos de alertas
+        loadAlertas,
+        marcarAlertaComoLido,
+
+        // Métodos de relatórios
+        gerarRelatorioEstoque,
+        gerarRelatorioProdutosMaisVendidos,
+        gerarRelatorioGiroEstoque,
+
+        // Utilidade
         clearProductsError,
       }}
     >

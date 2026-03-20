@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useOrders } from "../../contexts/OrdersContext";
 import { ServiceOrder, OrderStatus } from "../../types";
+import { formatCurrencyBRL } from "../../utils/formatters";
 
 interface OrdersListProps {
   onSelectOrder?: (order: ServiceOrder) => void;
@@ -74,10 +75,6 @@ export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
     );
   };
 
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toFixed(2).replace(".", ",")}`;
-  };
-
   const renderOrderItem = ({ item }: { item: ServiceOrder }) => (
     <View style={styles.orderCard}>
       <TouchableOpacity
@@ -104,12 +101,18 @@ export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
         </View>
 
         <View style={styles.orderDetails}>
-          <Text style={styles.itemCount}>
-            {item.items.length} item{item.items.length !== 1 ? "ns" : ""}
-          </Text>
-          <Text style={styles.totalValue}>
-            {formatCurrency(item.totalValue)}
-          </Text>
+          <View style={styles.tableLine}>
+            <Text style={styles.tableKey}>Itens</Text>
+            <Text style={styles.itemCount}>
+              {item.items.length} item{item.items.length !== 1 ? "ns" : ""}
+            </Text>
+          </View>
+          <View style={styles.tableLine}>
+            <Text style={styles.tableKey}>Total</Text>
+            <Text style={styles.totalValue}>
+              {formatCurrencyBRL(item.totalValue)}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
 
@@ -201,7 +204,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 12,
@@ -209,8 +212,8 @@ const styles = StyleSheet.create({
   addButton: {
     backgroundColor: "#2563EB",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
     alignSelf: "flex-start",
   },
   addButtonText: {
@@ -265,12 +268,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   orderCard: {
     backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     overflow: "hidden",
@@ -286,7 +289,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   orderNumber: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 2,
@@ -298,7 +301,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   statusBadgeText: {
     fontSize: 11,
@@ -306,18 +309,33 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   orderDetails: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#F9FAFB",
+  },
+  tableLine: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  tableKey: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "600",
   },
   itemCount: {
     fontSize: 12,
-    color: "#9CA3AF",
+    color: "#374151",
+    fontWeight: "500",
   },
   totalValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#059669",
   },

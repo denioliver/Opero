@@ -18,6 +18,28 @@ import {
 import { db } from '../../config/firebase';
 import { Cliente } from '../../domains/clientes/types';
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return Object.prototype.toString.call(value) === '[object Object]';
+};
+
+const removeUndefinedDeep = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => removeUndefinedDeep(item))
+      .filter((item) => item !== undefined) as T;
+  }
+
+  if (isPlainObject(value)) {
+    const cleanedEntries = Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .map(([key, entryValue]) => [key, removeUndefinedDeep(entryValue)]);
+
+    return Object.fromEntries(cleanedEntries) as T;
+  }
+
+  return value;
+};
+
 /**
  * Cria um novo cliente
  * @param empresaId - ID da empresa
@@ -43,12 +65,16 @@ export async function createClient(
       id: clienteId,
       empresaId,
       ...clientData,
+      limiteCredito: clientData.limiteCredito ?? 0,
+      descontoPercentual: clientData.descontoPercentual ?? 0,
       createdAt: serverTimestamp() as Timestamp,
       createdBy: userId,
       status: 'ativo',
     };
 
-    await setDoc(newClientRef, cliente);
+    const clienteSemUndefined = removeUndefinedDeep(cliente);
+
+    await setDoc(newClientRef, clienteSemUndefined);
     console.log('[clientService] Cliente criado:', clienteId);
 
     return clienteId;
@@ -61,13 +87,13 @@ export async function createClient(
 /**
  * Obtém todos os clientes da empresa com filtros opcionais
  * @param empresaId - ID da empresa
- * @param statusFilter - Filtrar por status ('ativo' ou 'inativo')
+ * @param statusFilter - Filtrar por status ('ativo', 'bloqueado' ou 'inativo')
  * @param sortBy - Campo para ordenação
  * @returns Lista de clientes
  */
 export async function getClients(
   empresaId: string,
-  statusFilter?: 'ativo' | 'inativo',
+  statusFilter?: 'ativo' | 'bloqueado' | 'inativo',
   sortBy: 'nome' | 'createdAt' = 'nome'
 ): Promise<Cliente[]> {
   try {
@@ -80,10 +106,7 @@ export async function getClients(
 
     let clientes = snapshot.docs.map((item) => item.data() as Cliente);
 
-    // Sempre exclui clientes inativos por padrão se não houver filtro explícito
-    if (!statusFilter) {
-      clientes = clientes.filter((cliente) => cliente.status !== 'inativo');
-    } else {
+    if (statusFilter) {
       clientes = clientes.filter((cliente) => cliente.status === statusFilter);
     }
 
@@ -157,7 +180,7 @@ export async function getClient(
 export async function updateClient(
   empresaId: string,
   clienteId: string,
-  updates: Partial<Omit<Cliente, 'id' | 'empresaId' | 'createdAt' | 'createdBy' | 'status'>>,
+  updates: Partial<Omit<Cliente, 'id' | 'empresaId' | 'createdAt' | 'createdBy'>>,
   userId: string
 ): Promise<void> {
   try {
@@ -165,10 +188,12 @@ export async function updateClient(
 
     const clientRef = doc(db, 'empresas', empresaId, 'clientes', clienteId);
 
-    await updateDoc(clientRef, {
+    const updatePayload = removeUndefinedDeep({
       ...updates,
       updatedAt: serverTimestamp(),
     });
+
+    await updateDoc(clientRef, updatePayload);
 
     console.log('[clientService] Cliente atualizado:', clienteId);
   } catch (error) {

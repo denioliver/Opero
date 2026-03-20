@@ -5,6 +5,7 @@ import { AuthProvider } from "./src/contexts/AuthContext";
 import { FuncionarioProvider } from "./src/contexts/FuncionarioContext";
 import { CompanyProvider } from "./src/contexts/CompanyContext";
 import { ClientsProvider } from "./src/contexts/ClientsContext";
+import { SuppliersProvider } from "./src/contexts/SuppliersContext";
 import { ProductsProvider } from "./src/contexts/ProductsContext";
 import { OrdersProvider } from "./src/contexts/OrdersContext";
 import { InvoicesProvider } from "./src/contexts/InvoicesContext";
@@ -15,17 +16,19 @@ export default function App() {
     <AuthProvider>
       <FuncionarioProvider>
         <CompanyProvider>
-          <ClientsProvider>
-            <ProductsProvider>
-              <OrdersProvider>
-                <InvoicesProvider>
-                  <NavigationContainer>
-                    <RootNavigator />
-                  </NavigationContainer>
-                </InvoicesProvider>
-              </OrdersProvider>
-            </ProductsProvider>
-          </ClientsProvider>
+          <SuppliersProvider>
+            <ClientsProvider>
+              <ProductsProvider>
+                <OrdersProvider>
+                  <InvoicesProvider>
+                    <NavigationContainer>
+                      <RootNavigator />
+                    </NavigationContainer>
+                  </InvoicesProvider>
+                </OrdersProvider>
+              </ProductsProvider>
+            </ClientsProvider>
+          </SuppliersProvider>
         </CompanyProvider>
       </FuncionarioProvider>
     </AuthProvider>

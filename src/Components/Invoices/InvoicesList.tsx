@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useInvoices } from "../../contexts/InvoicesContext";
 import { Invoice, InvoiceStatus } from "../../types";
+import { formatCurrencyBRL, formatDateBRL } from "../../utils/formatters";
 
 interface InvoicesListProps {
   onSelectInvoice?: (invoice: Invoice) => void;
@@ -45,16 +46,6 @@ export function InvoicesList({ onSelectInvoice }: InvoicesListProps) {
         invoice.clientName.toLowerCase().includes(searchText.toLowerCase())),
   );
 
-  const formatCurrency = (value: number) => {
-    return `R$ ${value.toFixed(2).replace(".", ",")}`;
-  };
-
-  const formatDate = (date: Date | any) => {
-    if (!date) return "";
-    const d = date instanceof Date ? date : new Date(date);
-    return d.toLocaleDateString("pt-BR");
-  };
-
   const renderInvoiceItem = ({ item }: { item: Invoice }) => (
     <TouchableOpacity
       style={styles.invoiceCard}
@@ -78,20 +69,22 @@ export function InvoicesList({ onSelectInvoice }: InvoicesListProps) {
       </View>
 
       <View style={styles.invoiceDetails}>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Emissão:</Text>
-          <Text style={styles.detailValue}>{formatDate(item.issueDate)}</Text>
+        <View style={styles.tableLine}>
+          <Text style={styles.detailLabel}>Emissão</Text>
+          <Text style={styles.detailValue}>
+            {formatDateBRL(item.issueDate)}
+          </Text>
         </View>
 
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Vencimento:</Text>
-          <Text style={styles.detailValue}>{formatDate(item.dueDate)}</Text>
+        <View style={styles.tableLine}>
+          <Text style={styles.detailLabel}>Vencimento</Text>
+          <Text style={styles.detailValue}>{formatDateBRL(item.dueDate)}</Text>
         </View>
 
-        <View style={[styles.detailItem, { flex: 1 }]}>
-          <Text style={styles.detailLabel}>Total:</Text>
+        <View style={styles.tableLine}>
+          <Text style={styles.detailLabel}>Total</Text>
           <Text style={styles.totalValue}>
-            {formatCurrency(item.totalValue)}
+            {formatCurrencyBRL(item.totalValue)}
           </Text>
         </View>
       </View>
@@ -156,7 +149,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
   },
@@ -201,12 +194,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   invoiceCard: {
     backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     paddingHorizontal: 12,
@@ -219,7 +212,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   invoiceNumber: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 2,
@@ -231,7 +224,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   statusBadgeText: {
     fontSize: 11,
@@ -239,24 +232,33 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   invoiceDetails: {
-    flexDirection: "row",
-    gap: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#F9FAFB",
   },
-  detailItem: {
-    flex: 1,
+  tableLine: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
   detailLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#9CA3AF",
-    marginBottom: 2,
+    fontWeight: "600",
   },
   detailValue: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#374151",
     fontWeight: "500",
   },
   totalValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#059669",
   },

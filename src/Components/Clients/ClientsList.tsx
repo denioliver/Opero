@@ -31,13 +31,14 @@ export function ClientsList({
   onAddCliente,
   onEditCliente,
 }: ClientsListProps) {
-  const { deleteCliente, error } = useClients();
+  const { deleteCliente, updateCliente, error } = useClients();
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<
-    "todos" | "ativo" | "inativo"
-  >("todos");
+    "todos" | "ativo" | "bloqueado" | "inativo"
+  >("ativo");
   const [currentPage, setCurrentPage] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   // Filtra clientes por busca e status
   const filteredClientes = useMemo(() => {
@@ -93,12 +94,53 @@ export function ClientsList({
     );
   };
 
-  const getStatusLabel = (status: "ativo" | "inativo"): string => {
-    return status === "ativo" ? "Ativo" : "Arquivado";
+  const handleToggleBlock = async (cliente: Cliente) => {
+    const toStatus = cliente.status === "bloqueado" ? "ativo" : "bloqueado";
+    const actionLabel = toStatus === "bloqueado" ? "bloquear" : "desbloquear";
+
+    Alert.alert(
+      "Status do cliente",
+      `Deseja ${actionLabel} o cliente "${cliente.nome}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: toStatus === "bloqueado" ? "Bloquear" : "Desbloquear",
+          style: toStatus === "bloqueado" ? "destructive" : "default",
+          onPress: async () => {
+            try {
+              setUpdatingStatusId(cliente.id);
+              await updateCliente(cliente.id, { status: toStatus });
+              Alert.alert(
+                "Sucesso",
+                toStatus === "bloqueado"
+                  ? "Cliente bloqueado com sucesso"
+                  : "Cliente desbloqueado com sucesso",
+              );
+            } catch (err) {
+              const msg =
+                err instanceof Error ? err.message : "Erro ao atualizar status";
+              Alert.alert("Erro", msg);
+            } finally {
+              setUpdatingStatusId(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
-  const statusColor = (status: "ativo" | "inativo"): string => {
-    return status === "ativo" ? "#10B981" : "#EF4444";
+  const getStatusLabel = (
+    status: "ativo" | "bloqueado" | "inativo",
+  ): string => {
+    if (status === "ativo") return "Ativo";
+    if (status === "bloqueado") return "Bloqueado";
+    return "Arquivado";
+  };
+
+  const statusColor = (status: "ativo" | "bloqueado" | "inativo"): string => {
+    if (status === "ativo") return "#10B981";
+    if (status === "bloqueado") return "#D97706";
+    return "#EF4444";
   };
 
   const getDocumentoLabel = (tipo: "pf" | "pj"): string => {
@@ -114,9 +156,8 @@ export function ClientsList({
         <View style={styles.clienteInfo}>
           <Text style={styles.clienteName}>{item.nome}</Text>
           <View style={styles.clienteMetaRow}>
-            <Text style={styles.clienteSubtitle}>
-              {getDocumentoLabel(item.tipo)}: {item.documento}
-            </Text>
+            <Text style={styles.metaLabel}>{getDocumentoLabel(item.tipo)}</Text>
+            <Text style={styles.clienteSubtitle}>{item.documento}</Text>
             <View
               style={[
                 styles.statusBadge,
@@ -130,19 +171,51 @@ export function ClientsList({
               </Text>
             </View>
           </View>
-          <View style={styles.clienteDetailRow}>
-            {item.telefone && (
-              <Text style={styles.clienteDetail}>{item.telefone}</Text>
-            )}
-            {item.email && (
-              <Text style={styles.clienteDetail}>{item.email}</Text>
-            )}
+          <View style={styles.inlineTable}>
+            <View style={styles.tableLine}>
+              <Text style={styles.tableKey}>Telefone</Text>
+              <Text style={styles.tableValue}>{item.telefone || "—"}</Text>
+            </View>
+            <View style={styles.tableLine}>
+              <Text style={styles.tableKey}>E-mail</Text>
+              <Text numberOfLines={1} style={styles.tableValue}>
+                {item.email || "—"}
+              </Text>
+            </View>
           </View>
         </View>
         <Text style={styles.arrowIcon}>›</Text>
       </TouchableOpacity>
 
       <View style={styles.clienteActions}>
+        {item.status !== "inativo" && (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              item.status === "bloqueado"
+                ? styles.editButton
+                : styles.deleteButton,
+            ]}
+            onPress={() => handleToggleBlock(item)}
+            disabled={updatingStatusId === item.id}
+          >
+            {updatingStatusId === item.id ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Text
+                style={[
+                  styles.actionButtonText,
+                  {
+                    color: item.status === "bloqueado" ? "#2563EB" : "#EF4444",
+                  },
+                ]}
+              >
+                {item.status === "bloqueado" ? "Desbloquear" : "Bloquear"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={[styles.actionButton, styles.editButton]}
           onPress={() => onEditCliente(item)}
@@ -227,8 +300,25 @@ export function ClientsList({
               statusFilter === "ativo" && styles.filterButtonTextActive,
             ]}
           >
-            Ativos (
-            {filteredClientes.filter((c) => c.status === "ativo").length})
+            Ativos ({clientes.filter((c) => c.status === "ativo").length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            statusFilter === "bloqueado" && styles.filterButtonActive,
+          ]}
+          onPress={() => setStatusFilter("bloqueado")}
+        >
+          <Text
+            style={[
+              styles.filterButtonText,
+              statusFilter === "bloqueado" && styles.filterButtonTextActive,
+            ]}
+          >
+            Bloqueados (
+            {clientes.filter((c) => c.status === "bloqueado").length})
           </Text>
         </TouchableOpacity>
 
@@ -245,8 +335,7 @@ export function ClientsList({
               statusFilter === "inativo" && styles.filterButtonTextActive,
             ]}
           >
-            Arquivados (
-            {filteredClientes.filter((c) => c.status === "inativo").length})
+            Arquivados ({clientes.filter((c) => c.status === "inativo").length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -353,15 +442,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
   },
   addButton: {
     backgroundColor: "#2563EB",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
   },
   addButtonText: {
     color: "#fff",
@@ -399,7 +488,7 @@ const styles = StyleSheet.create({
   filtersContainer: {
     flexDirection: "row",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
@@ -407,7 +496,7 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: "#D1D5DB",
@@ -458,12 +547,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   clienteCard: {
     backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 12,
+    borderRadius: 10,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     overflow: "hidden",
@@ -479,20 +568,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   clienteName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#1F2937",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   clienteMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
     gap: 8,
+  },
+  metaLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
   clienteSubtitle: {
     fontSize: 13,
-    color: "#6B7280",
+    color: "#374151",
+    flexShrink: 1,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -503,13 +599,33 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
   },
-  clienteDetailRow: {
-    flexDirection: "row",
-    gap: 12,
+  inlineTable: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#F9FAFB",
   },
-  clienteDetail: {
+  tableLine: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  tableKey: {
     fontSize: 12,
     color: "#9CA3AF",
+    fontWeight: "600",
+  },
+  tableValue: {
+    fontSize: 12,
+    color: "#374151",
+    fontWeight: "500",
+    marginLeft: 8,
+    flexShrink: 1,
   },
   arrowIcon: {
     fontSize: 24,

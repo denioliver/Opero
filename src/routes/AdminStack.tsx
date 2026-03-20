@@ -14,16 +14,9 @@ export default function AdminStack() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animationEnabled: true,
       }}
     >
-      <Stack.Screen
-        name="AdminDashboard"
-        component={AdminDashboard}
-        options={{
-          animationEnabled: false,
-        }}
-      />
+      <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
     </Stack.Navigator>
   );
 }

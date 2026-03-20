@@ -4,16 +4,16 @@ export {
   formatCPF,
   formatPhone,
   formatZipCode,
-} from './formatters/documents';
+} from "./documents";
 
 export {
   formatCurrencyBRL,
   formatCurrencyInput,
   formatPercentBRL,
   parseCurrencyInput,
-} from './formatters/currency';
+} from "./currency";
 
 export {
   formatDateBRL,
   formatDateTimeBRL,
-} from './formatters/date';
+} from "./date";
