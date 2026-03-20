@@ -19,6 +19,9 @@ interface OrdersListProps {
 }
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
+  aberto: "Aberto",
+  faturado: "Faturado",
+  cancelado: "Cancelado",
   rascunho: "Rascunho",
   confirmada: "Confirmada",
   em_andamento: "Em Andamento",
@@ -27,6 +30,9 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 };
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
+  aberto: "#2563EB",
+  faturado: "#7C3AED",
+  cancelado: "#DC2626",
   rascunho: "#9CA3AF",
   confirmada: "#3B82F6",
   em_andamento: "#F59E0B",
@@ -35,7 +41,8 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 };
 
 export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
-  const { orders, isLoadingOrders, loadOrders, deleteOrder } = useOrders();
+  const { orders, isLoadingOrders, loadOrders, deleteOrder, faturarOrder } =
+    useOrders();
   const [searchText, setSearchText] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -117,6 +124,29 @@ export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
       </TouchableOpacity>
 
       <View style={styles.orderActions}>
+        {(item.status === "aberto" || item.status === "confirmada") && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.billButton]}
+            onPress={async () => {
+              try {
+                await faturarOrder(item.orderId, {
+                  parcelas: 1,
+                  formaPagamento: "boleto",
+                });
+                Alert.alert("Sucesso", "Pedido faturado com sucesso");
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : "Erro ao faturar";
+                Alert.alert("Erro", message);
+              }
+            }}
+          >
+            <Text style={[styles.actionButtonText, { color: "#7C3AED" }]}>
+              Faturar
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={[styles.actionButton, styles.editButton]}
           onPress={() => onSelectOrder?.(item)}
@@ -354,6 +384,9 @@ const styles = StyleSheet.create({
   },
   editButton: {
     backgroundColor: "#F0F9FF",
+  },
+  billButton: {
+    backgroundColor: "#F3E8FF",
   },
   deleteButton: {
     backgroundColor: "#FEF2F2",

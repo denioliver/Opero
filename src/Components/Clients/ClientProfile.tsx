@@ -24,6 +24,9 @@ import {
 } from "../../utils/formatters";
 
 const ORDER_STATUS_LABELS: Record<ServiceOrder["status"], string> = {
+  aberto: "Aberto",
+  faturado: "Faturado",
+  cancelado: "Cancelado",
   rascunho: "Rascunho",
   confirmada: "Confirmada",
   em_andamento: "Em andamento",
@@ -32,6 +35,9 @@ const ORDER_STATUS_LABELS: Record<ServiceOrder["status"], string> = {
 };
 
 const ORDER_STATUS_COLORS: Record<ServiceOrder["status"], string> = {
+  aberto: "#2563EB",
+  faturado: "#7C3AED",
+  cancelado: "#DC2626",
   rascunho: "#9CA3AF",
   confirmada: "#3B82F6",
   em_andamento: "#F59E0B",

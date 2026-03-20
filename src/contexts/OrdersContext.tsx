@@ -15,6 +15,9 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { formatCurrencyBRL } from "../utils/formatters";
+import { useAuth } from "./AuthContext";
+import { useFuncionario } from "./FuncionarioContext";
+import { registrarAuditoria } from "../services/firebase/auditoriaService";
 
 interface OrdersContextType {
   orders: ServiceOrder[];
@@ -28,6 +31,14 @@ interface OrdersContextType {
     orderId: string,
     updates: Partial<ServiceOrder>,
   ) => Promise<void>;
+  faturarOrder: (
+    orderId: string,
+    options?: {
+      dueDate?: Date;
+      parcelas?: number;
+      formaPagamento?: string;
+    },
+  ) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   clearOrdersError: () => void;
 }
@@ -36,6 +47,8 @@ const OrdersContext = createContext<OrdersContextType | undefined>(undefined);
 
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
+  const { user } = useAuth();
+  const { funcionario } = useFuncionario();
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
@@ -110,6 +123,15 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       };
 
       if (cliente.status === "bloqueado") {
+        await addDoc(collection(db, "alertas_sistema"), {
+          companyId: company.companyId,
+          tipo: "cliente_bloqueado",
+          titulo: "Cliente bloqueado tentando comprar",
+          descricao: `${cliente.nome || order.clientName || order.clientId} tentou gerar pedido bloqueado`,
+          origemId: order.clientId,
+          lido: false,
+          createdAt: serverTimestamp(),
+        });
         throw new Error("Cliente bloqueado. Não é possível criar pedidos.");
       }
 
@@ -160,6 +182,10 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       > = {
         ...order,
         clientName: order.clientName || cliente.nome || order.clientName,
+        subtotal: originalTotalValue,
+        discount: roundCurrency(originalTotalValue - discountedTotalValue),
+        total: discountedTotalValue,
+        status: order.status || "aberto",
         originalTotalValue,
         discountPercentApplied: descontoPercentual,
         totalValue: discountedTotalValue,
@@ -182,6 +208,35 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date(),
         },
       ]);
+
+      if (company.companyId && user?.id) {
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "criar_pedido",
+          "ordens",
+          docRef.id,
+          {
+            clienteId: order.clientId,
+            total: discountedTotalValue,
+            itens: order.items.length,
+          },
+        );
+      }
     } catch (error) {
       console.error("[OrdersContext] Erro ao adicionar ordem:", error);
       throw error;
@@ -205,9 +260,164 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
             : o,
         ),
       );
+
+      if (company?.companyId && user?.id) {
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "editar_pedido",
+          "ordens",
+          orderId,
+          { updates },
+        );
+      }
     } catch (error) {
       console.error("[OrdersContext] Erro ao atualizar ordem:", error);
       throw error;
+    }
+  };
+
+  const faturarOrder = async (
+    orderId: string,
+    options?: {
+      dueDate?: Date;
+      parcelas?: number;
+      formaPagamento?: string;
+    },
+  ) => {
+    if (!company?.companyId) throw new Error("Empresa não encontrada");
+
+    const order = orders.find((item) => item.orderId === orderId);
+    if (!order) throw new Error("Pedido não encontrado");
+
+    if (order.status === "faturado" || order.status === "faturada") {
+      throw new Error("Pedido já faturado");
+    }
+
+    const dueDate =
+      options?.dueDate ||
+      (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 15);
+        return d;
+      })();
+    const parcelas = Math.max(1, options?.parcelas || 1);
+    const valorTotal = order.total || order.totalValue;
+
+    const invoiceNumber = `NF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+    const invoiceRef = await addDoc(collection(db, "invoices"), {
+      companyId: company.companyId,
+      invoiceNumber,
+      orderId: order.orderId,
+      clientId: order.clientId,
+      clientName: order.clientName,
+      issueDate: new Date(),
+      dueDate,
+      status: "enviada",
+      items: order.items,
+      subtotal: order.subtotal || order.totalValue,
+      taxes: 0,
+      discount: order.discount || 0,
+      totalValue: valorTotal,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    await updateDoc(doc(db, "orders", orderId), {
+      status: "faturado",
+      completionDate: new Date(),
+      updatedAt: serverTimestamp(),
+    });
+
+    if (parcelas > 1) {
+      const valorParcela =
+        Math.round((valorTotal / parcelas + Number.EPSILON) * 100) / 100;
+      for (let parcela = 1; parcela <= parcelas; parcela += 1) {
+        const vencimento = new Date(dueDate);
+        vencimento.setMonth(vencimento.getMonth() + (parcela - 1));
+
+        await addDoc(collection(db, "contas_receber"), {
+          companyId: company.companyId,
+          clienteId: order.clientId,
+          clienteNome: order.clientName,
+          pedidoId: order.orderId,
+          invoiceId: invoiceRef.id,
+          valor: valorParcela,
+          dataVencimento: vencimento,
+          status: "pendente",
+          formaPagamento: options?.formaPagamento || "boleto",
+          parcela,
+          totalParcelas: parcelas,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } else {
+      await addDoc(collection(db, "contas_receber"), {
+        companyId: company.companyId,
+        clienteId: order.clientId,
+        clienteNome: order.clientName,
+        pedidoId: order.orderId,
+        invoiceId: invoiceRef.id,
+        valor: valorTotal,
+        dataVencimento: dueDate,
+        status: "pendente",
+        formaPagamento: options?.formaPagamento || "boleto",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    setOrders((prev) =>
+      prev.map((item) =>
+        item.orderId === orderId
+          ? { ...item, status: "faturado", updatedAt: new Date() }
+          : item,
+      ),
+    );
+
+    if (company.companyId && user?.id) {
+      const actor = funcionario
+        ? {
+            funcionarioId: funcionario.funcionarioId,
+            funcionarioNome: funcionario.funcionarioNome,
+            qualificacao: funcionario.qualificacao,
+            empresaId: company.companyId,
+          }
+        : {
+            funcionarioId: user.id,
+            funcionarioNome: user.name || user.email,
+            qualificacao: "outro" as any,
+            empresaId: company.companyId,
+          };
+
+      await registrarAuditoria(
+        company.companyId,
+        actor,
+        "faturar_pedido",
+        "financeiro",
+        orderId,
+        {
+          invoiceId: invoiceRef.id,
+          valorTotal,
+          parcelas,
+        },
+      );
     }
   };
 
@@ -232,6 +442,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
         loadOrders,
         addOrder,
         updateOrder,
+        faturarOrder,
         deleteOrder,
         clearOrdersError,
       }}

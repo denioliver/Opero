@@ -9,6 +9,8 @@ import { SuppliersProvider } from "./src/contexts/SuppliersContext";
 import { ProductsProvider } from "./src/contexts/ProductsContext";
 import { OrdersProvider } from "./src/contexts/OrdersContext";
 import { InvoicesProvider } from "./src/contexts/InvoicesContext";
+import { ReceivablesProvider } from "./src/contexts/ReceivablesContext";
+import { PayablesProvider } from "./src/contexts/PayablesContext";
 import RootNavigator from "./src/routes/RootNavigator";
 
 export default function App() {
@@ -21,9 +23,13 @@ export default function App() {
               <ProductsProvider>
                 <OrdersProvider>
                   <InvoicesProvider>
-                    <NavigationContainer>
-                      <RootNavigator />
-                    </NavigationContainer>
+                    <ReceivablesProvider>
+                      <PayablesProvider>
+                        <NavigationContainer>
+                          <RootNavigator />
+                        </NavigationContainer>
+                      </PayablesProvider>
+                    </ReceivablesProvider>
                   </InvoicesProvider>
                 </OrdersProvider>
               </ProductsProvider>

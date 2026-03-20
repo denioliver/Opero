@@ -14,6 +14,8 @@ import {
 } from "../services/firebase/clientService";
 import { useCompany } from "./CompanyContext";
 import { useAuth } from "./AuthContext";
+import { useFuncionario } from "./FuncionarioContext";
+import { registrarAuditoria } from "../services/firebase/auditoriaService";
 
 interface ClientsContextType {
   // Estado
@@ -51,6 +53,7 @@ const ClientsContext = createContext<ClientsContextType | undefined>(undefined);
 export function ClientsProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
   const { user } = useAuth();
+  const { funcionario } = useFuncionario();
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(
@@ -124,6 +127,32 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
           company.companyId,
           clientData,
           user.id,
+        );
+
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "criar_cliente",
+          "clientes",
+          clienteId,
+          {
+            nome: clientData.nome,
+            documento: clientData.documento,
+          },
         );
 
         // Recarrega lista
@@ -212,6 +241,29 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
         }
 
         await updateClient(company.companyId, clienteId, updates, user.id);
+
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "editar_cliente",
+          "clientes",
+          clienteId,
+          { updates },
+        );
 
         // Recarrega lista
         await loadClientes();

@@ -106,7 +106,15 @@ export interface Product {
   updatedAt: Date;
 }
 
-export type OrderStatus = 'rascunho' | 'confirmada' | 'em_andamento' | 'concluida' | 'faturada';
+export type OrderStatus =
+  | 'aberto'
+  | 'faturado'
+  | 'cancelado'
+  | 'rascunho'
+  | 'confirmada'
+  | 'em_andamento'
+  | 'concluida'
+  | 'faturada';
 
 export interface OrderItem {
   itemId: string;
@@ -123,11 +131,16 @@ export interface ServiceOrder {
   orderNumber: string; // Formato: OS-2026-0001
   clientId: string;
   clientName?: string; // Cache para exibição
+  sellerId?: string;
+  sellerName?: string;
   status: OrderStatus;
   issueDate: Date;
   scheduledDate?: Date;
   completionDate?: Date;
   items: OrderItem[];
+  subtotal?: number;
+  discount?: number;
+  total?: number;
   observations?: string;
   originalTotalValue?: number;
   discountPercentApplied?: number;

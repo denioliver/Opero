@@ -19,6 +19,8 @@ import { useProducts } from "../../contexts/ProductsContext";
 import { useOrders } from "../../contexts/OrdersContext";
 import { useInvoices } from "../../contexts/InvoicesContext";
 import { useCompany } from "../../contexts/CompanyContext";
+import { useReceivables } from "../../contexts/ReceivablesContext";
+import { usePayables } from "../../contexts/PayablesContext";
 import {
   exportReportCsv,
   exportReportPdf,
@@ -116,6 +118,14 @@ export const RelatoriosScreen: React.FC = () => {
   const { products, loadProducts, isLoadingProducts } = useProducts();
   const { orders, loadOrders, isLoadingOrders } = useOrders();
   const { invoices, loadInvoices, isLoadingInvoices } = useInvoices();
+  const { contasReceber, loadContasReceber, totalPendente, totalAtrasado } =
+    useReceivables();
+  const {
+    contasPagar,
+    loadContasPagar,
+    totalPendentePagar,
+    totalAtrasadoPagar,
+  } = usePayables();
 
   const [rangeMode, setRangeMode] = useState<RangeMode>("30");
   const [customStart, setCustomStart] = useState("");
@@ -145,6 +155,8 @@ export const RelatoriosScreen: React.FC = () => {
       loadProducts(),
       loadOrders(),
       loadInvoices(),
+      loadContasReceber(),
+      loadContasPagar(),
     ]).catch((error) => {
       console.error("[Relatorios] Erro ao carregar dados:", error);
     });
@@ -341,6 +353,12 @@ export const RelatoriosScreen: React.FC = () => {
       quantidadeComprasFornecedor,
       totalProdutos: filteredProducts.length,
       totalNotas: filteredInvoices.length,
+      contasReceberPendente: totalPendente,
+      contasReceberAtrasado: totalAtrasado,
+      contasPagarPendente: totalPendentePagar,
+      contasPagarAtrasado: totalAtrasadoPagar,
+      lucroEstimado:
+        receitaRealizada - (totalPendentePagar + totalAtrasadoPagar),
     };
   }, [
     filteredOrders,
@@ -348,7 +366,31 @@ export const RelatoriosScreen: React.FC = () => {
     filteredClientes,
     filteredProducts,
     filteredFornecedores,
+    totalPendente,
+    totalAtrasado,
+    totalPendentePagar,
+    totalAtrasadoPagar,
   ]);
+
+  const faturamentoMensal = useMemo(() => {
+    const map = new Map<string, number>();
+
+    filteredInvoices.forEach((invoice) => {
+      const issueDate = parseDate(invoice.issueDate);
+      if (!issueDate) return;
+
+      const key = `${String(issueDate.getMonth() + 1).padStart(2, "0")}/${issueDate.getFullYear()}`;
+      map.set(key, (map.get(key) || 0) + (invoice.totalValue || 0));
+    });
+
+    return Array.from(map.entries())
+      .map(([mes, valor]) => ({ mes, valor }))
+      .sort((a, b) => {
+        const [ma, aa] = a.mes.split("/").map(Number);
+        const [mb, ab] = b.mes.split("/").map(Number);
+        return aa === ab ? ma - mb : aa - ab;
+      });
+  }, [filteredInvoices]);
 
   const topFornecedores = useMemo(() => {
     return filteredFornecedores
@@ -821,6 +863,44 @@ export const RelatoriosScreen: React.FC = () => {
                 {metrics.totalOrdens} OS / {metrics.totalNotas} NFs
               </Text>
             </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Lucro estimado</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(metrics.lucroEstimado)}
+              </Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Contas a receber</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(
+                  metrics.contasReceberPendente + metrics.contasReceberAtrasado,
+                )}
+              </Text>
+            </View>
+            <View style={styles.metricCard}>
+              <Text style={styles.metricLabel}>Contas a pagar</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(
+                  metrics.contasPagarPendente + metrics.contasPagarAtrasado,
+                )}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Faturamento mensal</Text>
+            {faturamentoMensal.length === 0 ? (
+              <Text style={styles.emptyText}>Sem faturamento no período.</Text>
+            ) : (
+              faturamentoMensal.map((item) => (
+                <View key={item.mes} style={styles.inlineRow}>
+                  <Text style={styles.rowLabel}>{item.mes}</Text>
+                  <Text style={styles.rowValue}>
+                    {formatCurrency(item.valor)}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
 
           <View style={styles.card}>

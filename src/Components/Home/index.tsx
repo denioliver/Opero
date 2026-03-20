@@ -15,6 +15,8 @@ import { useSuppliers } from "../../contexts/SuppliersContext";
 import { useProducts } from "../../contexts/ProductsContext";
 import { useOrders } from "../../contexts/OrdersContext";
 import { useInvoices } from "../../contexts/InvoicesContext";
+import { useReceivables } from "../../contexts/ReceivablesContext";
+import { usePayables } from "../../contexts/PayablesContext";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 
@@ -28,6 +30,9 @@ type RootStackParamList = {
   Acessos: undefined;
   Relatorios: undefined;
   Configuracoes: undefined;
+  ContasReceber: undefined;
+  ContasPagar: undefined;
+  Alertas: undefined;
   Auditoria:
     | {
         statusKey?: "ordens" | "clientes" | "produtos" | "nfs";
@@ -55,6 +60,20 @@ export const Home: React.FC = () => {
   const { products, loadProducts } = useProducts();
   const { orders, loadOrders } = useOrders();
   const { invoices, loadInvoices } = useInvoices();
+  const {
+    contasReceber,
+    loadContasReceber,
+    atualizarAtrasos,
+    totalAtrasado,
+    totalPendente,
+  } = useReceivables();
+  const {
+    contasPagar,
+    loadContasPagar,
+    atualizarAtrasosPagar,
+    totalPendentePagar,
+    totalAtrasadoPagar,
+  } = usePayables();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [loggingOut, setLoggingOut] = useState(false);
   const isLoading = authLoading || funcionarioLoading;
@@ -75,6 +94,10 @@ export const Home: React.FC = () => {
       loadProducts(),
       loadOrders(),
       loadInvoices(),
+      loadContasReceber(),
+      loadContasPagar(),
+      atualizarAtrasos(),
+      atualizarAtrasosPagar(),
     ]).catch((error) => {
       console.error("[Home] Erro ao carregar indicadores:", error);
     });
@@ -147,6 +170,20 @@ export const Home: React.FC = () => {
       onPress: () =>
         navigation.navigate("Configuracoes" as keyof RootStackParamList),
     },
+    {
+      id: "receivables",
+      icon: "CR",
+      label: "Contas a Receber",
+      onPress: () =>
+        navigation.navigate("ContasReceber" as keyof RootStackParamList),
+    },
+    {
+      id: "payables",
+      icon: "CP",
+      label: "Contas a Pagar",
+      onPress: () =>
+        navigation.navigate("ContasPagar" as keyof RootStackParamList),
+    },
   ];
 
   const adminMenuItems = [
@@ -169,6 +206,12 @@ export const Home: React.FC = () => {
       label: "Relatórios",
       onPress: () =>
         navigation.navigate("Relatorios" as keyof RootStackParamList),
+    },
+    {
+      id: "alertas",
+      icon: "ALR",
+      label: "Alertas",
+      onPress: () => navigation.navigate("Alertas" as keyof RootStackParamList),
     },
   ];
 
@@ -203,6 +246,16 @@ export const Home: React.FC = () => {
       value: String(invoices.length),
     },
   ];
+
+  const faturamento = invoices
+    .filter((item) => item.status === "paga")
+    .reduce((sum, item) => sum + (item.totalValue || 0), 0);
+  const pagar = totalPendentePagar + totalAtrasadoPagar;
+  const receber = totalPendente + totalAtrasado;
+  const lucro = faturamento - pagar;
+  const estoqueBaixo = products.filter(
+    (item) => (item.currentStock || 0) < (item.minimumStock || 0),
+  ).length;
 
   if (isLoading) {
     return (
@@ -277,6 +330,34 @@ export const Home: React.FC = () => {
               </View>
             ))}
           </ScrollView>
+        </View>
+
+        <View style={styles.financeSection}>
+          <Text style={styles.menuSectionTitle}>Dashboard Financeiro</Text>
+          <View style={styles.financeGrid}>
+            <View style={styles.financeCard}>
+              <Text style={styles.financeLabel}>Faturamento</Text>
+              <Text style={styles.financeValue}>
+                R$ {faturamento.toFixed(2)}
+              </Text>
+            </View>
+            <View style={styles.financeCard}>
+              <Text style={styles.financeLabel}>A Receber</Text>
+              <Text style={styles.financeValue}>R$ {receber.toFixed(2)}</Text>
+            </View>
+            <View style={styles.financeCard}>
+              <Text style={styles.financeLabel}>A Pagar</Text>
+              <Text style={styles.financeValue}>R$ {pagar.toFixed(2)}</Text>
+            </View>
+            <View style={styles.financeCard}>
+              <Text style={styles.financeLabel}>Lucro</Text>
+              <Text style={styles.financeValue}>R$ {lucro.toFixed(2)}</Text>
+            </View>
+            <View style={styles.financeCardFull}>
+              <Text style={styles.financeLabel}>Estoque baixo</Text>
+              <Text style={styles.financeValue}>{estoqueBaixo} item(ns)</Text>
+            </View>
+          </View>
         </View>
 
         {/* Menu Grid */}
@@ -419,6 +500,44 @@ const styles = StyleSheet.create({
   },
   menuSection: {
     marginBottom: 18,
+  },
+  financeSection: {
+    marginBottom: 18,
+  },
+  financeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 6,
+  },
+  financeCard: {
+    width: "48%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  financeCardFull: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  financeLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  financeValue: {
+    marginTop: 4,
+    fontSize: 14,
+    color: "#1F2937",
+    fontWeight: "700",
   },
   menuSectionTitle: {
     fontSize: 16,

@@ -10,6 +10,9 @@ import { AcessosScreen } from "../Components/Acessos/index";
 import { AuditoriaScreen } from "../Components/Auditoria/index";
 import { RelatoriosScreen } from "../Components/Relatorios";
 import { ConfiguracoesScreen } from "../Components/Configuracoes";
+import { ContasReceberScreen } from "../Components/Financeiro/ContasReceber";
+import { ContasPagarScreen } from "../Components/Financeiro/ContasPagar";
+import { AlertasScreen } from "../Components/Alertas";
 
 const Stack = createStackNavigator();
 
@@ -30,6 +33,9 @@ export default function AppStack() {
       <Stack.Screen name="Auditoria" component={AuditoriaScreen} />
       <Stack.Screen name="Relatorios" component={RelatoriosScreen} />
       <Stack.Screen name="Configuracoes" component={ConfiguracoesScreen} />
+      <Stack.Screen name="ContasReceber" component={ContasReceberScreen} />
+      <Stack.Screen name="ContasPagar" component={ContasPagarScreen} />
+      <Stack.Screen name="Alertas" component={AlertasScreen} />
     </Stack.Navigator>
   );
 }

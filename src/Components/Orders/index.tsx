@@ -15,6 +15,7 @@ import { useOrders } from "../../contexts/OrdersContext";
 import { useClients } from "../../contexts/ClientsContext";
 import { useProducts } from "../../contexts/ProductsContext";
 import { useCompany } from "../../contexts/CompanyContext";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   formatCurrencyBRL,
   formatCurrencyInput,
@@ -66,6 +67,7 @@ function OrderForm({
 }) {
   const { addOrder, updateOrder, isLoadingOrders } = useOrders();
   const { company } = useCompany();
+  const { user } = useAuth();
   const { clientes, loadClientes, isLoading: isLoadingClientes } = useClients();
   const { products, loadProducts, isLoadingProducts } = useProducts();
 
@@ -73,7 +75,16 @@ function OrderForm({
     order?.clientId || "",
   );
   const [status, setStatus] = useState<ServiceOrder["status"]>(
-    order?.status || "confirmada",
+    order?.status || "aberto",
+  );
+  const [sellerName, setSellerName] = useState(
+    order?.sellerName || user?.name || "",
+  );
+  const [sellerId, setSellerId] = useState(order?.sellerId || user?.id || "");
+  const [discountInput, setDiscountInput] = useState(
+    formatCurrencyInput(
+      String(Math.round(((order?.discount || 0) as number) * 100)),
+    ),
   );
   const [observations, setObservations] = useState(order?.observations || "");
   const [items, setItems] = useState<OrderItemForm[]>(
@@ -116,6 +127,16 @@ function OrderForm({
       return sum + quantity * unitPrice;
     }, 0);
   }, [items]);
+
+  const discountValue = useMemo(
+    () => toCurrencyNumber(discountInput || "0,00"),
+    [discountInput],
+  );
+
+  const finalTotal = useMemo(
+    () => Math.max(0, totalValue - discountValue),
+    [totalValue, discountValue],
+  );
 
   const handleAddItem = () => {
     const product = products.find((item) => item.productId === newProductId);
@@ -161,6 +182,11 @@ function OrderForm({
       return;
     }
 
+    if (!sellerName.trim()) {
+      Alert.alert("Validação", "Informe o vendedor responsável.");
+      return;
+    }
+
     if (!selectedClient || selectedClient.status === "bloqueado") {
       Alert.alert("Validação", "Cliente bloqueado não pode receber pedidos.");
       return;
@@ -189,13 +215,18 @@ function OrderForm({
       orderNumber: order?.orderNumber || buildOrderNumber(),
       clientId: selectedClientId,
       clientName: selectedClient?.nome,
+      sellerId,
+      sellerName,
       status,
       issueDate: order?.issueDate || new Date(),
       scheduledDate: order?.scheduledDate,
       completionDate: order?.completionDate,
       items: parsedItems,
+      subtotal: totalValue,
+      discount: discountValue,
+      total: finalTotal,
       observations: observations.trim() || undefined,
-      totalValue,
+      totalValue: finalTotal,
     };
 
     try {
@@ -256,6 +287,22 @@ function OrderForm({
               })}
             </View>
           )}
+
+          <Text style={[styles.label, { marginTop: 10 }]}>Vendedor</Text>
+          <TextInput
+            style={styles.input}
+            value={sellerName}
+            onChangeText={setSellerName}
+            placeholder="Nome do vendedor"
+          />
+
+          <Text style={[styles.label, { marginTop: 10 }]}>ID do vendedor</Text>
+          <TextInput
+            style={styles.input}
+            value={sellerId}
+            onChangeText={setSellerId}
+            placeholder="Identificador do vendedor"
+          />
         </View>
 
         <View style={styles.card}>
@@ -350,9 +397,22 @@ function OrderForm({
             <Text style={styles.rowValue}>{currency(totalValue)}</Text>
           </View>
 
+          <Text style={styles.label}>Desconto</Text>
+          <TextInput
+            style={styles.input}
+            value={discountInput}
+            onChangeText={(text) => setDiscountInput(formatCurrencyInput(text))}
+            keyboardType="decimal-pad"
+            placeholder="0,00"
+          />
+
+          <View style={styles.inlineRow}>
+            <Text style={styles.rowLabel}>Total final</Text>
+            <Text style={styles.rowValue}>{currency(finalTotal)}</Text>
+          </View>
+
           <Text style={styles.helperText}>
-            Desconto e validação de crédito são aplicados automaticamente ao
-            salvar, conforme cadastro do cliente.
+            O total é calculado automaticamente com base nos itens e desconto.
           </Text>
 
           <Text style={styles.label}>Observações</Text>
