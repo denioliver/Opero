@@ -31,6 +31,7 @@ import {
   Funcionario,
   FuncionarioContexto,
   FuncionarioQualificacao,
+  HomePermissions,
 } from "../../domains/auth/types";
 import { useAuth } from "../../contexts/AuthContext";
 import { useFuncionario } from "../../contexts/FuncionarioContext";
@@ -47,6 +48,17 @@ const QUALIFICACOES: Array<{ label: string; value: FuncionarioQualificacao }> =
     { label: "Financeiro", value: "financeiro" },
     { label: "Outro", value: "outro" },
   ];
+
+const DEFAULT_HOME_PERMISSIONS: HomePermissions = {
+  cardFaturamento: true,
+  cardAReceber: true,
+  cardAPagar: true,
+  cardLucro: true,
+  cardEstoqueBaixo: true,
+  atalhoNotasFiscais: true,
+  atalhoContasReceber: true,
+  atalhoContasPagar: true,
+};
 
 export const AcessosScreen: React.FC = () => {
   const { height: screenHeight } = useWindowDimensions();
@@ -77,6 +89,11 @@ export const AcessosScreen: React.FC = () => {
   const [telefone, setTelefone] = useState("");
   const [senha, setSenha] = useState("");
   const [canAccessAdminCards, setCanAccessAdminCards] = useState(false);
+  const [canAccessFinancialDashboard, setCanAccessFinancialDashboard] =
+    useState(false);
+  const [homePermissions, setHomePermissions] = useState<HomePermissions>(
+    DEFAULT_HOME_PERMISSIONS,
+  );
   const [adminPermissions, setAdminPermissions] = useState<AdminPermissions>({
     acessos: true,
     auditoria: true,
@@ -85,6 +102,8 @@ export const AcessosScreen: React.FC = () => {
   const [isFormLoading, setIsFormLoading] = useState(false);
   const [showQualificacaoOptions, setShowQualificacaoOptions] = useState(false);
   const [showAdminPermissionOptions, setShowAdminPermissionOptions] =
+    useState(false);
+  const [showHomePermissionOptions, setShowHomePermissionOptions] =
     useState(false);
 
   const getAuditActor = (): FuncionarioContexto | null => {
@@ -138,9 +157,12 @@ export const AcessosScreen: React.FC = () => {
     setTelefone("");
     setSenha("");
     setCanAccessAdminCards(false);
+    setCanAccessFinancialDashboard(false);
+    setHomePermissions(DEFAULT_HOME_PERMISSIONS);
     setAdminPermissions({ acessos: true, auditoria: true, relatorios: true });
     setShowQualificacaoOptions(false);
     setShowAdminPermissionOptions(false);
+    setShowHomePermissionOptions(false);
     setEditingId(null);
   };
 
@@ -153,6 +175,12 @@ export const AcessosScreen: React.FC = () => {
       setTelefone(funcionario.telefone || "");
       setSenha(""); // Não carrega senha anterior
       setCanAccessAdminCards(!!funcionario.canAccessAdminCards);
+      setCanAccessFinancialDashboard(
+        funcionario.canAccessFinancialDashboard !== false,
+      );
+      setHomePermissions(
+        funcionario.homePermissions || DEFAULT_HOME_PERMISSIONS,
+      );
       setAdminPermissions(
         funcionario.adminPermissions || {
           acessos: true,
@@ -168,6 +196,13 @@ export const AcessosScreen: React.FC = () => {
 
   const toggleAdminPermission = (key: keyof AdminPermissions) => {
     setAdminPermissions((prev) => ({
+      ...prev,
+      [key]: !prev?.[key],
+    }));
+  };
+
+  const toggleHomePermission = (key: keyof HomePermissions) => {
+    setHomePermissions((prev) => ({
       ...prev,
       [key]: !prev?.[key],
     }));
@@ -200,7 +235,9 @@ export const AcessosScreen: React.FC = () => {
           email: email || undefined,
           telefone: telefone || undefined,
           canAccessAdminCards,
+          canAccessFinancialDashboard,
           adminPermissions: canAccessAdminCards ? adminPermissions : {},
+          homePermissions,
         };
 
         if (senha.trim()) {
@@ -221,7 +258,9 @@ export const AcessosScreen: React.FC = () => {
               funcionarioNome: nome,
               qualificacao: selectedQualificacao,
               canAccessAdminCards,
+              canAccessFinancialDashboard,
               adminPermissions: canAccessAdminCards ? adminPermissions : null,
+              homePermissions,
             },
           );
         }
@@ -236,7 +275,9 @@ export const AcessosScreen: React.FC = () => {
           email || undefined,
           telefone || undefined,
           canAccessAdminCards,
+          canAccessFinancialDashboard,
           canAccessAdminCards ? adminPermissions : undefined,
+          homePermissions,
         );
 
         const actor = getAuditActor();
@@ -251,7 +292,9 @@ export const AcessosScreen: React.FC = () => {
               funcionarioNome: nome,
               qualificacao: selectedQualificacao,
               canAccessAdminCards,
+              canAccessFinancialDashboard,
               adminPermissions: canAccessAdminCards ? adminPermissions : null,
+              homePermissions,
             },
           );
         }
@@ -417,6 +460,31 @@ export const AcessosScreen: React.FC = () => {
                       : "Sem acesso"}
                   </Text>
                 </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Dashboard:</Text>
+                  <Text style={styles.value}>
+                    {item.canAccessFinancialDashboard !== false
+                      ? "Permitido"
+                      : "Sem acesso"}
+                  </Text>
+                </View>
+                {item.canAccessFinancialDashboard !== false && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Visibilidade:</Text>
+                    <Text style={styles.value}>
+                      {(() => {
+                        const perms = item.homePermissions;
+                        if (!perms) return "Tudo liberado";
+                        const hiddenCount = Object.values(perms).filter(
+                          (value) => value === false,
+                        ).length;
+                        return hiddenCount === 0
+                          ? "Tudo liberado"
+                          : `${hiddenCount} item(ns) oculto(s)`;
+                      })()}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Botões */}
@@ -607,6 +675,262 @@ export const AcessosScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
+              {/* Acesso ao Dashboard Financeiro */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Dashboard Financeiro</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.permissionToggle,
+                    canAccessFinancialDashboard
+                      ? styles.permissionToggleActive
+                      : styles.permissionToggleInactive,
+                  ]}
+                  onPress={() =>
+                    setCanAccessFinancialDashboard((prev) => !prev)
+                  }
+                  disabled={isFormLoading}
+                >
+                  <Text
+                    style={[
+                      styles.permissionToggleText,
+                      canAccessFinancialDashboard
+                        ? styles.permissionToggleTextActive
+                        : styles.permissionToggleTextInactive,
+                    ]}
+                  >
+                    {canAccessFinancialDashboard ? "Permitido" : "Bloqueado"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {canAccessFinancialDashboard && (
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Itens visíveis na Home</Text>
+                  <TouchableOpacity
+                    style={styles.selectTrigger}
+                    onPress={() =>
+                      setShowHomePermissionOptions((prev) => !prev)
+                    }
+                    disabled={isFormLoading}
+                  >
+                    <Text style={styles.selectTriggerText}>
+                      {showHomePermissionOptions
+                        ? "Ocultar seleção"
+                        : "Selecionar itens visíveis"}
+                    </Text>
+                    <Text style={styles.selectTriggerIcon}>
+                      {showHomePermissionOptions ? "▴" : "▾"}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showHomePermissionOptions && (
+                    <ScrollView
+                      style={[
+                        styles.selectOptionsPanel,
+                        { maxHeight: dropdownMaxHeight },
+                      ]}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator
+                      persistentScrollbar
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      <View style={styles.permissionsGrid}>
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.cardFaturamento
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() =>
+                            toggleHomePermission("cardFaturamento")
+                          }
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.cardFaturamento
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Card Faturamento
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.cardAReceber
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() => toggleHomePermission("cardAReceber")}
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.cardAReceber
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Card A Receber
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.cardAPagar
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() => toggleHomePermission("cardAPagar")}
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.cardAPagar
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Card A Pagar
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.cardLucro
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() => toggleHomePermission("cardLucro")}
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.cardLucro
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Card Lucro
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.cardEstoqueBaixo
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() =>
+                            toggleHomePermission("cardEstoqueBaixo")
+                          }
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.cardEstoqueBaixo
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Card Estoque baixo
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.atalhoNotasFiscais
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() =>
+                            toggleHomePermission("atalhoNotasFiscais")
+                          }
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.atalhoNotasFiscais
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Atalho Notas Fiscais
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.atalhoContasReceber
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() =>
+                            toggleHomePermission("atalhoContasReceber")
+                          }
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.atalhoContasReceber
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Atalho Contas a Receber
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.permissionChip,
+                            homePermissions.atalhoContasPagar
+                              ? styles.permissionChipOn
+                              : styles.permissionChipOff,
+                          ]}
+                          onPress={() =>
+                            toggleHomePermission("atalhoContasPagar")
+                          }
+                          disabled={isFormLoading}
+                        >
+                          <Text
+                            style={[
+                              styles.permissionChipText,
+                              homePermissions.atalhoContasPagar
+                                ? styles.permissionChipTextOn
+                                : styles.permissionChipTextOff,
+                            ]}
+                          >
+                            Atalho Contas a Pagar
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </ScrollView>
+                  )}
+
+                  <Text style={styles.permissionsHint}>
+                    Desative os itens que o funcionário não deve visualizar na
+                    Home.
+                  </Text>
+                </View>
+              )}
+
               {/* Permissões por tela (quando permitido) */}
               {canAccessAdminCards && (
                 <View style={styles.formGroup}>
@@ -715,31 +1039,33 @@ export const AcessosScreen: React.FC = () => {
                   </Text>
                 </View>
               )}
-            </ScrollView>
 
-            {/* Botões Ação */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel]}
-                onPress={handleCloseModal}
-                disabled={isFormLoading}
-              >
-                <Text style={styles.modalBtnText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnSave]}
-                onPress={handleCreateOrUpdate}
-                disabled={isFormLoading}
-              >
-                {isFormLoading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={[styles.modalBtnText, styles.modalBtnTextSave]}>
-                    {editingId ? "Atualizar" : "Criar"}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+              {/* Botões Ação (abaixo do formulário) */}
+              <View style={styles.modalButtonsInline}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnCancel]}
+                  onPress={handleCloseModal}
+                  disabled={isFormLoading}
+                >
+                  <Text style={styles.modalBtnText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnSave]}
+                  onPress={handleCreateOrUpdate}
+                  disabled={isFormLoading}
+                >
+                  {isFormLoading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text
+                      style={[styles.modalBtnText, styles.modalBtnTextSave]}
+                    >
+                      {editingId ? "Atualizar" : "Criar"}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -951,7 +1277,7 @@ const styles = StyleSheet.create({
   modalForm: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    maxHeight: "60%",
+    maxHeight: "74%",
   },
   formGroup: {
     marginBottom: 16,
@@ -1111,11 +1437,10 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     lineHeight: 16,
   },
-  modalButtons: {
+  modalButtonsInline: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    paddingBottom: 24,
+    marginTop: 8,
+    marginBottom: 12,
     gap: 12,
   },
   modalBtn: {

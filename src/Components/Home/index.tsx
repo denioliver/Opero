@@ -19,6 +19,7 @@ import { useReceivables } from "../../contexts/ReceivablesContext";
 import { usePayables } from "../../contexts/PayablesContext";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
+import type { HomeFeature } from "../../domains/auth/types";
 
 type RootStackParamList = {
   Dashboard: undefined;
@@ -84,6 +85,29 @@ export const Home: React.FC = () => {
     "Proprietário";
   const isProprietario = user?.role === "users";
   const canSeeAdminCards = isProprietario || !!funcionario?.canAccessAdminCards;
+  const canSeeFinancialDashboard =
+    isProprietario || funcionario?.canAccessFinancialDashboard !== false;
+  const canSeeHomeFeature = (feature: HomeFeature) => {
+    if (isProprietario) return true;
+    return funcionario?.homePermissions?.[feature] !== false;
+  };
+
+  const canSeeFaturamentoCard =
+    canSeeFinancialDashboard && canSeeHomeFeature("cardFaturamento");
+  const canSeeReceberCard =
+    canSeeFinancialDashboard && canSeeHomeFeature("cardAReceber");
+  const canSeePagarCard =
+    canSeeFinancialDashboard && canSeeHomeFeature("cardAPagar");
+  const canSeeLucroCard =
+    canSeeFinancialDashboard && canSeeHomeFeature("cardLucro");
+  const canSeeEstoqueCard =
+    canSeeFinancialDashboard && canSeeHomeFeature("cardEstoqueBaixo");
+  const canSeeFinancialSection =
+    canSeeFaturamentoCard ||
+    canSeeReceberCard ||
+    canSeePagarCard ||
+    canSeeLucroCard ||
+    canSeeEstoqueCard;
 
   useEffect(() => {
     if (!company?.companyId) return;
@@ -185,6 +209,14 @@ export const Home: React.FC = () => {
         navigation.navigate("ContasPagar" as keyof RootStackParamList),
     },
   ];
+
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (item.id === "invoices") return canSeeHomeFeature("atalhoNotasFiscais");
+    if (item.id === "receivables")
+      return canSeeHomeFeature("atalhoContasReceber");
+    if (item.id === "payables") return canSeeHomeFeature("atalhoContasPagar");
+    return true;
+  });
 
   const adminMenuItems = [
     {
@@ -332,39 +364,55 @@ export const Home: React.FC = () => {
           </ScrollView>
         </View>
 
-        <View style={styles.financeSection}>
-          <Text style={styles.menuSectionTitle}>Dashboard Financeiro</Text>
-          <View style={styles.financeGrid}>
-            <View style={styles.financeCard}>
-              <Text style={styles.financeLabel}>Faturamento</Text>
-              <Text style={styles.financeValue}>
-                R$ {faturamento.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.financeCard}>
-              <Text style={styles.financeLabel}>A Receber</Text>
-              <Text style={styles.financeValue}>R$ {receber.toFixed(2)}</Text>
-            </View>
-            <View style={styles.financeCard}>
-              <Text style={styles.financeLabel}>A Pagar</Text>
-              <Text style={styles.financeValue}>R$ {pagar.toFixed(2)}</Text>
-            </View>
-            <View style={styles.financeCard}>
-              <Text style={styles.financeLabel}>Lucro</Text>
-              <Text style={styles.financeValue}>R$ {lucro.toFixed(2)}</Text>
-            </View>
-            <View style={styles.financeCardFull}>
-              <Text style={styles.financeLabel}>Estoque baixo</Text>
-              <Text style={styles.financeValue}>{estoqueBaixo} item(ns)</Text>
+        {canSeeFinancialSection && (
+          <View style={styles.financeSection}>
+            <Text style={styles.menuSectionTitle}>Dashboard Financeiro</Text>
+            <View style={styles.financeGrid}>
+              {canSeeFaturamentoCard && (
+                <View style={styles.financeCard}>
+                  <Text style={styles.financeLabel}>Faturamento</Text>
+                  <Text style={styles.financeValue}>
+                    R$ {faturamento.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+              {canSeeReceberCard && (
+                <View style={styles.financeCard}>
+                  <Text style={styles.financeLabel}>A Receber</Text>
+                  <Text style={styles.financeValue}>
+                    R$ {receber.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+              {canSeePagarCard && (
+                <View style={styles.financeCard}>
+                  <Text style={styles.financeLabel}>A Pagar</Text>
+                  <Text style={styles.financeValue}>R$ {pagar.toFixed(2)}</Text>
+                </View>
+              )}
+              {canSeeLucroCard && (
+                <View style={styles.financeCard}>
+                  <Text style={styles.financeLabel}>Lucro</Text>
+                  <Text style={styles.financeValue}>R$ {lucro.toFixed(2)}</Text>
+                </View>
+              )}
+              {canSeeEstoqueCard && (
+                <View style={styles.financeCardFull}>
+                  <Text style={styles.financeLabel}>Estoque baixo</Text>
+                  <Text style={styles.financeValue}>
+                    {estoqueBaixo} item(ns)
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
-        </View>
+        )}
 
         {/* Menu Grid */}
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Gerenciamento</Text>
           <View style={styles.menuGrid}>
-            {menuItems.map((item) => (
+            {visibleMenuItems.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.menuItem}

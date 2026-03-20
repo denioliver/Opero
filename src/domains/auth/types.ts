@@ -47,6 +47,17 @@ export type FuncionarioQualificacao =
 export type AdminFeature = 'acessos' | 'auditoria' | 'relatorios';
 export type AdminPermissions = Partial<Record<AdminFeature, boolean>>;
 
+export type HomeFeature =
+  | 'cardFaturamento'
+  | 'cardAReceber'
+  | 'cardAPagar'
+  | 'cardLucro'
+  | 'cardEstoqueBaixo'
+  | 'atalhoNotasFiscais'
+  | 'atalhoContasReceber'
+  | 'atalhoContasPagar';
+export type HomePermissions = Partial<Record<HomeFeature, boolean>>;
+
 /**
  * Funcionário dentro de uma empresa
  * Armazenado em: /empresas/{empresaId}/funcionarios/{funcionarioId}
@@ -59,7 +70,9 @@ export interface Funcionario {
   senha: string; // Hash bcrypt
   qualificacao: FuncionarioQualificacao;
   canAccessAdminCards?: boolean;
+  canAccessFinancialDashboard?: boolean;
   adminPermissions?: AdminPermissions;
+  homePermissions?: HomePermissions;
   
   // Opcional
   email?: string;
@@ -129,5 +142,7 @@ export interface FuncionarioContexto {
   qualificacao: FuncionarioQualificacao;
   empresaId: string;
   canAccessAdminCards?: boolean;
+  canAccessFinancialDashboard?: boolean;
   adminPermissions?: AdminPermissions;
+  homePermissions?: HomePermissions;
 }

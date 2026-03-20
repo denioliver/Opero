@@ -546,13 +546,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   clienteCard: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: 9,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     overflow: "hidden",
@@ -561,22 +561,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
   },
   clienteInfo: {
     flex: 1,
   },
   clienteName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     color: "#1F2937",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   clienteMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
     gap: 8,
   },
   metaLabel: {
@@ -586,12 +586,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   clienteSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#374151",
     flexShrink: 1,
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 4,
   },
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
   inlineTable: {
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: 8,
+    borderRadius: 7,
     overflow: "hidden",
     backgroundColor: "#F9FAFB",
   },
@@ -610,8 +610,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   arrowIcon: {
-    fontSize: 24,
+    fontSize: 20,
     color: "#D1D5DB",
   },
   clienteActions: {
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     justifyContent: "center",
     alignItems: "center",
     borderRightWidth: 1,
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     borderRightWidth: 0,
   },
   actionButtonText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#2563EB",
   },

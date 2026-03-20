@@ -236,7 +236,7 @@ export function SuppliersList({
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={{ padding: 12 }}
         />
       )}
     </View>
@@ -308,24 +308,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: 9,
+    marginBottom: 8,
     overflow: "hidden",
   },
   cardMain: {
     flexDirection: "row",
     alignItems: "flex-start",
-    padding: 12,
-    gap: 10,
+    padding: 10,
+    gap: 8,
   },
-  name: { fontSize: 15, fontWeight: "700", color: "#111827", marginBottom: 4 },
-  meta: { fontSize: 12, color: "#6B7280", marginBottom: 2 },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  name: { fontSize: 14, fontWeight: "700", color: "#111827", marginBottom: 3 },
+  meta: { fontSize: 11, color: "#6B7280", marginBottom: 1 },
+  badge: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   badgeAtivo: { backgroundColor: "#DCFCE7" },
   badgeBloqueado: { backgroundColor: "#FEF3C7" },
   badgeInativo: { backgroundColor: "#FEE2E2" },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     color: "#1F2937",
     textTransform: "capitalize",
@@ -334,8 +334,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
     flexDirection: "row",
-    gap: 8,
-    padding: 10,
+    gap: 6,
+    padding: 8,
   },
   actionButton: {
     flex: 1,
@@ -343,12 +343,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
-    minHeight: 36,
+    minHeight: 32,
   },
   primaryAction: { backgroundColor: "#2563EB" },
   warningAction: { backgroundColor: "#D97706" },
   dangerAction: { backgroundColor: "#DC2626" },
-  actionText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  actionText: { color: "#fff", fontSize: 11, fontWeight: "700" },
   center: {
     flex: 1,
     justifyContent: "center",

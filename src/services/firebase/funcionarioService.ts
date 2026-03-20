@@ -19,6 +19,7 @@ import {
   AdminPermissions,
   Funcionario,
   FuncionarioQualificacao,
+  HomePermissions,
 } from '../../domains/auth/types';
 import bcrypt from 'bcryptjs';
 
@@ -53,7 +54,9 @@ export async function criarFuncionario(
   email?: string,
   telefone?: string,
   canAccessAdminCards: boolean = false,
-  adminPermissions?: AdminPermissions
+  canAccessFinancialDashboard: boolean = false,
+  adminPermissions?: AdminPermissions,
+  homePermissions?: HomePermissions
 ): Promise<string> {
   try {
     ensureBcryptRandomFallback();
@@ -89,9 +92,11 @@ export async function criarFuncionario(
       senha: senhaHash,
       qualificacao,
       canAccessAdminCards,
+      canAccessFinancialDashboard,
       ...(canAccessAdminCards && adminPermissions
         ? { adminPermissions }
         : {}),
+      ...(homePermissions ? { homePermissions } : {}),
       ...(email ? { email } : {}),
       ...(telefone ? { telefone } : {}),
       createdAt: new Date(),
