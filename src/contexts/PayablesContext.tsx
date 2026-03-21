@@ -212,6 +212,34 @@ export function PayablesProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (pendentes.length > 0) {
+      if (company?.companyId && user?.id) {
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "atualizar_atrasos_contas_pagar",
+          "financeiro",
+          "contas_pagar",
+          {
+            quantidadeAtualizada: pendentes.length,
+            contaIds: pendentes.map((item) => item.contaPagarId),
+          },
+        );
+      }
+
       await loadContasPagar();
     }
   };

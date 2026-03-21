@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useState } from "react";
 import { Product } from "../types";
 import { useCompany } from "./CompanyContext";
+import { useAuth } from "./AuthContext";
+import { useFuncionario } from "./FuncionarioContext";
 import { db } from "../config/firebase";
 import {
   collection,
@@ -22,6 +24,7 @@ import {
   RelatorioGiroEstoque,
 } from "../domains/produtos/movimentacao";
 import * as productService from "../services/firebase/productService";
+import { registrarAuditoria } from "../services/firebase/auditoriaService";
 
 interface ProductsContextType {
   // Produtos
@@ -81,6 +84,8 @@ const ProductsContext = createContext<ProductsContextType | undefined>(
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
+  const { user } = useAuth();
+  const { funcionario } = useFuncionario();
 
   // Produtos
   const [products, setProducts] = useState<Product[]>([]);
@@ -106,6 +111,26 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [relatorioGiroEstoque, setRelatorioGiroEstoque] = useState<
     RelatorioGiroEstoque[]
   >([]);
+
+  const getActor = useCallback(() => {
+    if (!company?.companyId || !user?.id) {
+      return null;
+    }
+
+    return funcionario
+      ? {
+          funcionarioId: funcionario.funcionarioId,
+          funcionarioNome: funcionario.funcionarioNome,
+          qualificacao: funcionario.qualificacao,
+          empresaId: company.companyId,
+        }
+      : {
+          funcionarioId: user.id,
+          funcionarioNome: user.name || user.email,
+          qualificacao: "outro" as const,
+          empresaId: company.companyId,
+        };
+  }, [company?.companyId, funcionario, user?.email, user?.id, user?.name]);
 
   const loadProducts = useCallback(async () => {
     if (!company?.companyId) return;
@@ -162,6 +187,23 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date(),
         },
       ]);
+
+      const actor = getActor();
+      if (actor) {
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "criar_produto",
+          "produtos",
+          docRef.id,
+          {
+            nome: product.name,
+            categoria: product.category,
+            preco: product.price,
+            estoque: product.stock,
+          },
+        );
+      }
     } catch (error) {
       console.error("[ProductsContext] Erro ao adicionar produto:", error);
       throw error;
@@ -185,6 +227,18 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
             : p,
         ),
       );
+
+      const actor = getActor();
+      if (actor && company?.companyId) {
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "editar_produto",
+          "produtos",
+          productId,
+          { updates },
+        );
+      }
     } catch (error) {
       console.error("[ProductsContext] Erro ao atualizar produto:", error);
       throw error;
@@ -200,6 +254,18 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       });
 
       setProducts((prev) => prev.filter((p) => p.productId !== productId));
+
+      const actor = getActor();
+      if (actor && company?.companyId) {
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "deletar_produto",
+          "produtos",
+          productId,
+          { active: false },
+        );
+      }
     } catch (error) {
       console.error("[ProductsContext] Erro ao deletar produto:", error);
       throw error;
@@ -223,6 +289,22 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
         "current-user", // TODO: Obter do contexto de autenticação
         dados,
       );
+
+      const actor = getActor();
+      if (actor) {
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "movimentar_estoque",
+          "produtos",
+          productId,
+          {
+            tipo,
+            quantidade,
+            dados,
+          },
+        );
+      }
 
       // Recarregar produtos após movimentação
       await loadProducts();

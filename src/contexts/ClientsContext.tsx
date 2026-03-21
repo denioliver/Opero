@@ -298,6 +298,29 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
 
         await deleteClient(company.companyId, clienteId);
 
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "deletar_cliente",
+          "clientes",
+          clienteId,
+          {},
+        );
+
         // Remove da lista local
         setClientes((prev) => prev.filter((c) => c.id !== clienteId));
 
@@ -317,7 +340,14 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, clienteSelecionado?.id],
+    [
+      company?.companyId,
+      user?.id,
+      user?.name,
+      user?.email,
+      funcionario,
+      clienteSelecionado?.id,
+    ],
   );
 
   /**

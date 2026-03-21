@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState } from "react";
 import { Invoice, InvoiceStatus } from "../types";
 import { useCompany } from "./CompanyContext";
+import { useAuth } from "./AuthContext";
+import { useFuncionario } from "./FuncionarioContext";
 import { db } from "../config/firebase";
 import {
   collection,
@@ -13,6 +15,7 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
+import { registrarAuditoria } from "../services/firebase/auditoriaService";
 
 interface InvoicesContextType {
   invoices: Invoice[];
@@ -36,9 +39,29 @@ const InvoicesContext = createContext<InvoicesContextType | undefined>(
 
 export function InvoicesProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
+  const { user } = useAuth();
+  const { funcionario } = useFuncionario();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
   const [invoicesError, setInvoicesError] = useState<string | null>(null);
+
+  const getActor = () => {
+    if (!company?.companyId || !user?.id) return null;
+
+    return funcionario
+      ? {
+          funcionarioId: funcionario.funcionarioId,
+          funcionarioNome: funcionario.funcionarioNome,
+          qualificacao: funcionario.qualificacao,
+          empresaId: company.companyId,
+        }
+      : {
+          funcionarioId: user.id,
+          funcionarioNome: user.name || user.email,
+          qualificacao: "outro" as const,
+          empresaId: company.companyId,
+        };
+  };
 
   const loadInvoices = async (status?: InvoiceStatus) => {
     if (!company?.companyId) return;
@@ -103,6 +126,23 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date(),
         },
       ]);
+
+      const actor = getActor();
+      if (actor) {
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "criar_nota_fiscal",
+          "notas_fiscais",
+          docRef.id,
+          {
+            invoiceNumber: invoice.invoiceNumber,
+            orderId: invoice.orderId,
+            clientName: invoice.clientName,
+            totalValue: invoice.totalValue,
+          },
+        );
+      }
     } catch (error) {
       console.error("[InvoicesContext] Erro ao adicionar nota fiscal:", error);
       throw error;
@@ -126,6 +166,18 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
             : i,
         ),
       );
+
+      const actor = getActor();
+      if (actor && company?.companyId) {
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "editar_nota_fiscal",
+          "notas_fiscais",
+          invoiceId,
+          { updates },
+        );
+      }
     } catch (error) {
       console.error("[InvoicesContext] Erro ao atualizar nota fiscal:", error);
       throw error;
@@ -136,6 +188,18 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
     try {
       await deleteDoc(doc(db, "invoices", invoiceId));
       setInvoices((prev) => prev.filter((i) => i.invoiceId !== invoiceId));
+
+      const actor = getActor();
+      if (actor && company?.companyId) {
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "deletar_nota_fiscal",
+          "notas_fiscais",
+          invoiceId,
+          {},
+        );
+      }
     } catch (error) {
       console.error("[InvoicesContext] Erro ao deletar nota fiscal:", error);
       throw error;

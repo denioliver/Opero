@@ -425,6 +425,31 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     try {
       await deleteDoc(doc(db, "orders", orderId));
       setOrders((prev) => prev.filter((o) => o.orderId !== orderId));
+
+      if (company?.companyId && user?.id) {
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "deletar_pedido",
+          "ordens",
+          orderId,
+          {},
+        );
+      }
     } catch (error) {
       console.error("[OrdersContext] Erro ao deletar ordem:", error);
       throw error;

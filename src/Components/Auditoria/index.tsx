@@ -191,7 +191,7 @@ export const AuditoriaScreen: React.FC = () => {
 
       if (respTerm) {
         filtered = filtered.filter((log) =>
-          (log.funcionarioNome || "").toLowerCase().includes(respTerm),
+          getResponsavelNome(log).toLowerCase().includes(respTerm),
         );
       }
 
@@ -226,6 +226,10 @@ export const AuditoriaScreen: React.FC = () => {
     return formatDateTimeBRL(date);
   };
 
+  const getResponsavelNome = (log: AuditoriaLog) => {
+    return log.funcionarioNome || "Responsável não informado";
+  };
+
   const getActionIcon = (acao: string) => {
     const icons: Record<string, string> = {
       criar_cliente: "CRI",
@@ -258,8 +262,102 @@ export const AuditoriaScreen: React.FC = () => {
       criar_funcionario: "Criou Funcionário",
       editar_funcionario: "Editou Funcionário",
       desativar_funcionario: "Desativou Funcionário",
+      criar_fornecedor: "Criou Fornecedor",
+      editar_fornecedor: "Editou Fornecedor",
+      deletar_fornecedor: "Arquivou Fornecedor",
+      registrar_compra_fornecedor: "Registrou Compra em Fornecedor",
+      criar_nota_fiscal: "Criou Nota Fiscal",
+      editar_nota_fiscal: "Editou Nota Fiscal",
+      deletar_nota_fiscal: "Deletou Nota Fiscal",
+      criar_pedido: "Criou Pedido",
+      editar_pedido: "Editou Pedido",
+      deletar_pedido: "Deletou Pedido",
+      faturar_pedido: "Faturou Pedido",
+      criar_conta_receber: "Criou Conta a Receber",
+      editar_conta_receber: "Editou Conta a Receber",
+      criar_conta_pagar: "Criou Conta a Pagar",
+      editar_conta_pagar: "Editou Conta a Pagar",
     };
-    return labels[acao] || acao;
+
+    if (labels[acao]) {
+      return labels[acao];
+    }
+
+    return acao
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  };
+
+  const getLabelFromKey = (key: string) => {
+    return key
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  };
+
+  const formatSimpleValue = (value: any): string => {
+    if (value === null || value === undefined) return "-";
+    if (value instanceof Date) return formatarData(value);
+    if (typeof value === "boolean") return value ? "Sim" : "Não";
+    if (typeof value === "number") return String(value);
+    if (typeof value === "string") return value || "-";
+    if (Array.isArray(value)) {
+      if (value.length === 0) return "-";
+      return value
+        .map((item) => {
+          if (item && typeof item === "object") {
+            const base =
+              item.nome ||
+              item.name ||
+              item.descricao ||
+              item.id ||
+              item.codigo;
+            return base ? String(base) : "Item";
+          }
+          return String(item);
+        })
+        .join(", ");
+    }
+    if (typeof value === "object") {
+      const resumo = Object.entries(value)
+        .slice(0, 4)
+        .map(([k, v]) => `${getLabelFromKey(k)}: ${formatSimpleValue(v)}`)
+        .join(" • ");
+      return resumo || "Dados atualizados";
+    }
+    return String(value);
+  };
+
+  const getDetalhesAcao = (
+    log: AuditoriaLog,
+  ): Array<{ label: string; value: string }> => {
+    const detalhes: Array<{ label: string; value: string }> = [];
+    const dados = log.dados || {};
+
+    Object.entries(dados).forEach(([key, value]) => {
+      detalhes.push({
+        label: getLabelFromKey(key),
+        value: formatSimpleValue(value),
+      });
+    });
+
+    if (log.mudancas && Object.keys(log.mudancas).length > 0) {
+      Object.entries(log.mudancas).forEach(([key, value]: any) => {
+        detalhes.push({
+          label: `Mudança em ${getLabelFromKey(key)}`,
+          value: `De ${formatSimpleValue(value?.de)} para ${formatSimpleValue(value?.para)}`,
+        });
+      });
+    }
+
+    if (detalhes.length === 0) {
+      detalhes.push({
+        label: "Resumo",
+        value: "Ação registrada sem detalhes adicionais",
+      });
+    }
+
+    return detalhes;
   };
 
   if (isLoading && auditorias.length === 0) {
@@ -487,8 +585,6 @@ export const AuditoriaScreen: React.FC = () => {
             <View style={styles.tableHeaderRow}>
               <Text style={[styles.th, styles.colDate]}>Data/Hora</Text>
               <Text style={[styles.th, styles.colAction]}>Ação</Text>
-              <Text style={[styles.th, styles.colCollection]}>Coleção</Text>
-              <Text style={[styles.th, styles.colDoc]}>Documento</Text>
               <Text style={[styles.th, styles.colUser]}>Responsável</Text>
             </View>
 
@@ -504,19 +600,10 @@ export const AuditoriaScreen: React.FC = () => {
                     {formatarData(item.criadoEm)}
                   </Text>
                   <Text style={[styles.td, styles.colAction]} numberOfLines={1}>
-                    {item.acao}
-                  </Text>
-                  <Text
-                    style={[styles.td, styles.colCollection]}
-                    numberOfLines={1}
-                  >
-                    {item.colecao}
-                  </Text>
-                  <Text style={[styles.td, styles.colDoc]} numberOfLines={1}>
-                    {item.documentoId}
+                    {getActionLabel(item.acao)}
                   </Text>
                   <Text style={[styles.td, styles.colUser]} numberOfLines={1}>
-                    {item.funcionarioNome}
+                    {getResponsavelNome(item)}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -551,13 +638,15 @@ export const AuditoriaScreen: React.FC = () => {
                       <View style={styles.dataRow}>
                         <Text style={styles.dataLabel}>Nome:</Text>
                         <Text style={styles.dataValue}>
-                          {selectedLog.funcionarioNome}
+                          {getResponsavelNome(selectedLog)}
                         </Text>
                       </View>
                       <View style={styles.dataRow}>
-                        <Text style={styles.dataLabel}>Cargo:</Text>
+                        <Text style={styles.dataLabel}>Tipo:</Text>
                         <Text style={styles.dataValue}>
-                          {selectedLog.qualificacao}
+                          {selectedLog.qualificacao === "outro"
+                            ? "Proprietário"
+                            : selectedLog.qualificacao}
                         </Text>
                       </View>
                     </View>
@@ -572,18 +661,6 @@ export const AuditoriaScreen: React.FC = () => {
                       <Text style={styles.dataLabel}>Ação:</Text>
                       <Text style={styles.dataValue}>
                         {getActionLabel(selectedLog.acao)}
-                      </Text>
-                    </View>
-                    <View style={styles.dataRow}>
-                      <Text style={styles.dataLabel}>Coleção:</Text>
-                      <Text style={styles.dataValue}>
-                        {selectedLog.colecao}
-                      </Text>
-                    </View>
-                    <View style={styles.dataRow}>
-                      <Text style={styles.dataLabel}>ID Documento:</Text>
-                      <Text style={styles.dataValue}>
-                        {selectedLog.documentoId}
                       </Text>
                     </View>
                   </View>
@@ -602,51 +679,22 @@ export const AuditoriaScreen: React.FC = () => {
                   </View>
                 </View>
 
-                {/* Dados */}
-                {Object.keys(selectedLog.dados).length > 0 && (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Dados Afetados</Text>
-                    <View style={styles.jsonBox}>
-                      <Text style={styles.jsonText}>
-                        {JSON.stringify(selectedLog.dados, null, 2)}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                {/* Mudanças */}
-                {selectedLog.mudancas &&
-                  Object.keys(selectedLog.mudancas).length > 0 && (
-                    <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>
-                        🔄 Mudanças Realizadas
-                      </Text>
-                      <View style={styles.changesList}>
-                        {Object.entries(selectedLog.mudancas).map(
-                          ([key, value]: any, idx) => (
-                            <View key={idx} style={styles.changeItem}>
-                              <Text style={styles.changeKey}>{key}</Text>
-                              <View style={styles.changeValues}>
-                                <View style={styles.changeFrom}>
-                                  <Text style={styles.changeLabel}>De:</Text>
-                                  <Text style={styles.changeText}>
-                                    {String(value.de || "-")}
-                                  </Text>
-                                </View>
-                                <Text style={styles.arrow}>→</Text>
-                                <View style={styles.changeTo}>
-                                  <Text style={styles.changeLabel}>Para:</Text>
-                                  <Text style={styles.changeText}>
-                                    {String(value.para || "-")}
-                                  </Text>
-                                </View>
-                              </View>
-                            </View>
-                          ),
-                        )}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Detalhes da Ação</Text>
+                  <View style={styles.detailsList}>
+                    {getDetalhesAcao(selectedLog).map((item, idx) => (
+                      <View
+                        key={`${item.label}-${idx}`}
+                        style={styles.detailLine}
+                      >
+                        <Text style={styles.detailLineLabel}>
+                          {item.label}:
+                        </Text>
+                        <Text style={styles.detailLineValue}>{item.value}</Text>
                       </View>
-                    </View>
-                  )}
+                    ))}
+                  </View>
+                </View>
               </ScrollView>
 
               {/* Modal Footer */}
@@ -808,7 +856,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   tableWrap: {
-    minWidth: 820,
+    minWidth: 620,
     paddingHorizontal: 16,
     paddingBottom: 18,
   },
@@ -848,19 +896,11 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   colAction: {
-    width: 160,
-    paddingRight: 10,
-  },
-  colCollection: {
-    width: 140,
-    paddingRight: 10,
-  },
-  colDoc: {
-    width: 160,
+    width: 230,
     paddingRight: 10,
   },
   colUser: {
-    width: 190,
+    width: 220,
   },
   emptyContainer: {
     flex: 1,
@@ -1037,61 +1077,27 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     flex: 1,
   },
-  jsonBox: {
-    backgroundColor: "#1F2937",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    maxHeight: 200,
-  },
-  jsonText: {
-    fontSize: 10,
-    color: "#10B981",
-    fontFamily: "monospace",
-  },
-  changesList: {
+  detailsList: {
     backgroundColor: "#F9FAFB",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    overflow: "hidden",
-  },
-  changeItem: {
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
   },
-  changeKey: {
+  detailLine: {
+    marginBottom: 10,
+  },
+  detailLineLabel: {
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: "#374151",
+    marginBottom: 3,
+  },
+  detailLineValue: {
+    fontSize: 12,
     color: "#1F2937",
-    marginBottom: 4,
-  },
-  changeValues: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  changeFrom: {
-    flex: 1,
-  },
-  changeTo: {
-    flex: 1,
-  },
-  changeLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  changeText: {
-    fontSize: 11,
-    color: "#1F2937",
-    marginTop: 2,
-  },
-  arrow: {
-    fontSize: 16,
-    color: "#D1D5DB",
-    marginHorizontal: 4,
+    lineHeight: 18,
   },
   modalFooter: {
     paddingHorizontal: 16,

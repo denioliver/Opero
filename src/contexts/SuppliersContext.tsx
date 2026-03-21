@@ -11,6 +11,8 @@ import {
 } from "../services/firebase/supplierService";
 import { useCompany } from "./CompanyContext";
 import { useAuth } from "./AuthContext";
+import { useFuncionario } from "./FuncionarioContext";
+import { registrarAuditoria } from "../services/firebase/auditoriaService";
 
 interface SuppliersContextType {
   fornecedores: Fornecedor[];
@@ -57,12 +59,33 @@ const SuppliersContext = createContext<SuppliersContextType | undefined>(
 export function SuppliersProvider({ children }: { children: React.ReactNode }) {
   const { company } = useCompany();
   const { user } = useAuth();
+  const { funcionario } = useFuncionario();
 
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [fornecedorSelecionado, setFornecedorSelecionado] =
     useState<Fornecedor | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const getActor = useCallback(() => {
+    if (!company?.companyId || !user?.id) {
+      return null;
+    }
+
+    return funcionario
+      ? {
+          funcionarioId: funcionario.funcionarioId,
+          funcionarioNome: funcionario.funcionarioNome,
+          qualificacao: funcionario.qualificacao,
+          empresaId: company.companyId,
+        }
+      : {
+          funcionarioId: user.id,
+          funcionarioNome: user.name || user.email,
+          qualificacao: "outro" as const,
+          empresaId: company.companyId,
+        };
+  }, [company?.companyId, funcionario, user?.email, user?.id, user?.name]);
 
   const loadFornecedores = useCallback(async () => {
     if (!company?.companyId) return;
@@ -110,6 +133,22 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
           data,
           user.id,
         );
+
+        const actor = getActor();
+        if (actor) {
+          await registrarAuditoria(
+            company.companyId,
+            actor,
+            "criar_fornecedor",
+            "fornecedores",
+            fornecedorId,
+            {
+              nome: data.nome,
+              cpfCnpj: data.cpfCnpj,
+            },
+          );
+        }
+
         await loadFornecedores();
         return fornecedorId;
       } catch (err) {
@@ -121,7 +160,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, user?.id, loadFornecedores],
+    [company?.companyId, user?.id, getActor, loadFornecedores],
   );
 
   const selectFornecedor = useCallback(
@@ -181,6 +220,19 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         }
 
         await updateSupplier(company.companyId, fornecedorId, updates);
+
+        const actor = getActor();
+        if (actor) {
+          await registrarAuditoria(
+            company.companyId,
+            actor,
+            "editar_fornecedor",
+            "fornecedores",
+            fornecedorId,
+            { updates },
+          );
+        }
+
         await loadFornecedores();
       } catch (err) {
         const message =
@@ -191,7 +243,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, loadFornecedores],
+    [company?.companyId, getActor, loadFornecedores],
   );
 
   const deleteFornecedor = useCallback(
@@ -205,6 +257,18 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setError(null);
 
         await deleteSupplier(company.companyId, fornecedorId);
+
+        const actor = getActor();
+        if (actor) {
+          await registrarAuditoria(
+            company.companyId,
+            actor,
+            "deletar_fornecedor",
+            "fornecedores",
+            fornecedorId,
+            { status: "inativo" },
+          );
+        }
 
         setFornecedores((prev) =>
           prev.filter((item) => item.id !== fornecedorId),
@@ -222,7 +286,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, fornecedorSelecionado?.id],
+    [company?.companyId, getActor, fornecedorSelecionado?.id],
   );
 
   const verificarDocumentoFornecedor = useCallback(
@@ -259,6 +323,24 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setError(null);
 
         await registerSupplierPurchase(company.companyId, fornecedorId, compra);
+
+        const actor = getActor();
+        if (actor) {
+          await registrarAuditoria(
+            company.companyId,
+            actor,
+            "registrar_compra_fornecedor",
+            "fornecedores",
+            fornecedorId,
+            {
+              valor: compra.valor,
+              data: compra.data,
+              descricao: compra.descricao,
+              produtoIds: compra.produtoIds || [],
+            },
+          );
+        }
+
         await loadFornecedores();
       } catch (err) {
         const message =
@@ -269,7 +351,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, loadFornecedores],
+    [company?.companyId, getActor, loadFornecedores],
   );
 
   const clearError = () => setError(null);

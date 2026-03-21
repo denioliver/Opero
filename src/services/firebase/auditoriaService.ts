@@ -5,12 +5,11 @@
 
 import {
   collection,
-  doc,
   addDoc,
   query,
   where,
   getDocs,
-  Timestamp,
+  QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { AuditoriaLog, FuncionarioContexto } from '../../domains/auth/types';
@@ -77,7 +76,7 @@ export async function listarAuditoria(
   }
 ): Promise<AuditoriaLog[]> {
   try {
-    let constraints = [where('empresaId', '==', empresaId)];
+    const constraints: QueryConstraint[] = [];
 
     if (filtros?.funcionarioId) {
       constraints.push(where('funcionarioId', '==', filtros.funcionarioId));

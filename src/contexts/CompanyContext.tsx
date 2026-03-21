@@ -10,6 +10,7 @@ import {
   getUserCompanyId,
 } from "../services/firebase/companyService";
 import { createCompanyFixed } from "../services/firebase/companyServiceFix";
+import { registrarAuditoria } from "../services/firebase/auditoriaService";
 
 interface CompanyContextType {
   company: Company | null;
@@ -153,6 +154,31 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         ...updates,
         updatedAt: serverTimestamp(),
       });
+
+      if (user?.id) {
+        const actor = funcionario
+          ? {
+              funcionarioId: funcionario.funcionarioId,
+              funcionarioNome: funcionario.funcionarioNome,
+              qualificacao: funcionario.qualificacao,
+              empresaId: company.companyId,
+            }
+          : {
+              funcionarioId: user.id,
+              funcionarioNome: user.name || user.email,
+              qualificacao: "outro" as any,
+              empresaId: company.companyId,
+            };
+
+        await registrarAuditoria(
+          company.companyId,
+          actor,
+          "editar_empresa",
+          "empresa",
+          company.companyId,
+          { updates },
+        );
+      }
 
       // Atualizar state local
       setCompany((prev) =>
