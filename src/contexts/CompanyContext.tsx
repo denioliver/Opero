@@ -11,6 +11,7 @@ import {
 } from "../services/firebase/companyService";
 import { createCompanyFixed } from "../services/firebase/companyServiceFix";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface CompanyContextType {
   company: Company | null;
@@ -143,6 +144,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     if (!company?.companyId) {
       throw new Error("Nenhuma empresa carregada");
     }
+
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+
+    await requireDeviceSecurity("atualizar dados da empresa");
 
     try {
       setIsLoadingCompany(true);

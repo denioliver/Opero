@@ -16,12 +16,19 @@ import { Cliente } from "../../domains/clientes/types";
 import { useClients } from "../../contexts/ClientsContext";
 import { useOrders } from "../../contexts/OrdersContext";
 import { useInvoices } from "../../contexts/InvoicesContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { Invoice, ServiceOrder } from "../../types";
 import {
   formatCurrencyBRL,
   formatDateBRL,
   formatPercentBRL,
 } from "../../utils/formatters";
+import {
+  maskAddressLine,
+  maskDocument,
+  maskEmail,
+  maskPhone,
+} from "../../utils/privacy";
 
 const ORDER_STATUS_LABELS: Record<ServiceOrder["status"], string> = {
   aberto: "Aberto",
@@ -89,9 +96,12 @@ export function ClientProfile({
   onBack,
   onEdit,
 }: ClientProfileProps) {
+  const { funcionario } = useFuncionario();
   const { clienteSelecionado, selectCliente, isLoading } = useClients();
   const { orders, loadOrders, isLoadingOrders } = useOrders();
   const { invoices, loadInvoices, isLoadingInvoices } = useInvoices();
+  const shouldMaskSensitiveData = !!funcionario?.readOnlyAccess;
+  const canWrite = !funcionario?.readOnlyAccess;
   const [activeTab, setActiveTab] = useState<"dados" | "ordens" | "financeiro">(
     "dados",
   );
@@ -174,7 +184,7 @@ export function ClientProfile({
             <Text style={styles.subtitle}>{tipoLabel}</Text>
           </View>
         </View>
-        {onEdit && (
+        {onEdit && canWrite && (
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => onEdit(cliente)}
@@ -239,17 +249,26 @@ export function ClientProfile({
         showsVerticalScrollIndicator={false}
       >
         {activeTab === "dados" && (
-          <DadosTab cliente={cliente} documentoLabel={documentoLabel} />
+          <DadosTab
+            cliente={cliente}
+            documentoLabel={documentoLabel}
+            shouldMaskSensitiveData={shouldMaskSensitiveData}
+          />
         )}
 
         {activeTab === "ordens" && (
-          <OrdensTab orders={clientOrders} isLoading={isLoadingOrders} />
+          <OrdensTab
+            orders={clientOrders}
+            isLoading={isLoadingOrders}
+            shouldMaskSensitiveData={shouldMaskSensitiveData}
+          />
         )}
 
         {activeTab === "financeiro" && (
           <FinanceiroTab
             invoices={clientInvoices}
             isLoading={isLoadingInvoices}
+            shouldMaskSensitiveData={shouldMaskSensitiveData}
           />
         )}
       </ScrollView>
@@ -260,9 +279,11 @@ export function ClientProfile({
 function DadosTab({
   cliente,
   documentoLabel,
+  shouldMaskSensitiveData,
 }: {
   cliente: Cliente;
   documentoLabel: string;
+  shouldMaskSensitiveData: boolean;
 }) {
   return (
     <>
@@ -271,9 +292,23 @@ function DadosTab({
         <Text style={styles.sectionTitle}>Informações Básicas</Text>
 
         <InfoRow label="Nome Completo" value={cliente.nome} />
-        <InfoRow label={documentoLabel} value={cliente.documento} />
+        <InfoRow
+          label={documentoLabel}
+          value={
+            shouldMaskSensitiveData
+              ? maskDocument(cliente.documento)
+              : cliente.documento
+          }
+        />
         <InfoRow label="Tipo" value={cliente.tipo === "pf" ? "PF" : "PJ"} />
-        {cliente.rg && <InfoRow label="RG" value={cliente.rg} />}
+        {cliente.rg && (
+          <InfoRow
+            label="RG"
+            value={
+              shouldMaskSensitiveData ? maskDocument(cliente.rg) : cliente.rg
+            }
+          />
+        )}
         {cliente.sexo && (
           <InfoRow
             label="Sexo"
@@ -306,11 +341,19 @@ function DadosTab({
         <Text style={styles.sectionTitle}>Política Comercial</Text>
         <InfoRow
           label="Limite de Crédito"
-          value={formatCurrency(cliente.limiteCredito || 0)}
+          value={
+            shouldMaskSensitiveData
+              ? "Oculto"
+              : formatCurrency(cliente.limiteCredito || 0)
+          }
         />
         <InfoRow
           label="Desconto Padrão"
-          value={formatPercentBRL(cliente.descontoPercentual || 0, 2)}
+          value={
+            shouldMaskSensitiveData
+              ? "Oculto"
+              : formatPercentBRL(cliente.descontoPercentual || 0, 2)
+          }
         />
       </View>
 
@@ -319,13 +362,25 @@ function DadosTab({
         <Text style={styles.sectionTitle}>Contato</Text>
 
         {cliente.telefone ? (
-          <InfoRow label="Telefone" value={cliente.telefone} />
+          <InfoRow
+            label="Telefone"
+            value={
+              shouldMaskSensitiveData
+                ? maskPhone(cliente.telefone)
+                : cliente.telefone
+            }
+          />
         ) : (
           <Text style={styles.emptyField}>Telefone não informado</Text>
         )}
 
         {cliente.email ? (
-          <InfoRow label="E-mail" value={cliente.email} />
+          <InfoRow
+            label="E-mail"
+            value={
+              shouldMaskSensitiveData ? maskEmail(cliente.email) : cliente.email
+            }
+          />
         ) : (
           <Text style={styles.emptyField}>E-mail não informado</Text>
         )}
@@ -338,13 +393,26 @@ function DadosTab({
 
           <InfoRow
             label="Logradouro"
-            value={`${cliente.endereco.rua}, ${cliente.endereco.numero}`}
+            value={
+              shouldMaskSensitiveData
+                ? maskAddressLine(
+                    `${cliente.endereco.rua}, ${cliente.endereco.numero}`,
+                  )
+                : `${cliente.endereco.rua}, ${cliente.endereco.numero}`
+            }
           />
           <InfoRow
             label="Cidade"
             value={`${cliente.endereco.cidade}, ${cliente.endereco.estado}`}
           />
-          <InfoRow label="CEP" value={cliente.endereco.cep} />
+          <InfoRow
+            label="CEP"
+            value={
+              shouldMaskSensitiveData
+                ? maskDocument(cliente.endereco.cep)
+                : cliente.endereco.cep
+            }
+          />
         </View>
       )}
 
@@ -381,9 +449,11 @@ function DadosTab({
 function OrdensTab({
   orders,
   isLoading,
+  shouldMaskSensitiveData,
 }: {
   orders: ServiceOrder[];
   isLoading: boolean;
+  shouldMaskSensitiveData: boolean;
 }) {
   const totalOrdens = orders.length;
   const totalFaturado = orders
@@ -418,7 +488,9 @@ function OrdensTab({
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Valor acumulado</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(totalFaturado)}
+                {shouldMaskSensitiveData
+                  ? "Valor oculto"
+                  : formatCurrency(totalFaturado)}
               </Text>
             </View>
           </View>
@@ -427,7 +499,9 @@ function OrdensTab({
             <View key={order.orderId} style={styles.historyCard}>
               <View style={styles.historyHeader}>
                 <View>
-                  <Text style={styles.historyTitle}>{order.orderNumber}</Text>
+                  <Text style={styles.historyTitle}>
+                    {shouldMaskSensitiveData ? "OS oculta" : order.orderNumber}
+                  </Text>
                   <Text style={styles.historyMeta}>
                     Emissão: {formatDate(order.issueDate)}
                   </Text>
@@ -460,14 +534,18 @@ function OrdensTab({
               <View style={styles.historyRow}>
                 <Text style={styles.historyKey}>Total</Text>
                 <Text style={styles.historyVal}>
-                  {formatCurrency(order.totalValue || 0)}
+                  {shouldMaskSensitiveData
+                    ? "Valor oculto"
+                    : formatCurrency(order.totalValue || 0)}
                 </Text>
               </View>
               {order.discountPercentApplied ? (
                 <View style={styles.historyRow}>
                   <Text style={styles.historyKey}>Desconto aplicado</Text>
                   <Text style={styles.historyVal}>
-                    {formatPercentBRL(order.discountPercentApplied, 2)}
+                    {shouldMaskSensitiveData
+                      ? "Oculto"
+                      : formatPercentBRL(order.discountPercentApplied, 2)}
                   </Text>
                 </View>
               ) : null}
@@ -482,9 +560,11 @@ function OrdensTab({
 function FinanceiroTab({
   invoices,
   isLoading,
+  shouldMaskSensitiveData,
 }: {
   invoices: Invoice[];
   isLoading: boolean;
+  shouldMaskSensitiveData: boolean;
 }) {
   const totalFaturado = invoices.reduce(
     (sum, invoice) => sum + (invoice.totalValue || 0),
@@ -522,19 +602,25 @@ function FinanceiroTab({
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Faturado</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(totalFaturado)}
+                {shouldMaskSensitiveData
+                  ? "Valor oculto"
+                  : formatCurrency(totalFaturado)}
               </Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Pago</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(totalPago)}
+                {shouldMaskSensitiveData
+                  ? "Valor oculto"
+                  : formatCurrency(totalPago)}
               </Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>Em aberto</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(totalEmAberto)}
+                {shouldMaskSensitiveData
+                  ? "Valor oculto"
+                  : formatCurrency(totalEmAberto)}
               </Text>
             </View>
           </View>
@@ -544,7 +630,9 @@ function FinanceiroTab({
               <View style={styles.historyHeader}>
                 <View>
                   <Text style={styles.historyTitle}>
-                    {invoice.invoiceNumber}
+                    {shouldMaskSensitiveData
+                      ? "NF oculta"
+                      : invoice.invoiceNumber}
                   </Text>
                   <Text style={styles.historyMeta}>
                     Emissão: {formatDate(invoice.issueDate)} • Venc.:{" "}
@@ -574,25 +662,33 @@ function FinanceiroTab({
               <View style={styles.historyRow}>
                 <Text style={styles.historyKey}>Subtotal</Text>
                 <Text style={styles.historyVal}>
-                  {formatCurrency(invoice.subtotal || 0)}
+                  {shouldMaskSensitiveData
+                    ? "Valor oculto"
+                    : formatCurrency(invoice.subtotal || 0)}
                 </Text>
               </View>
               <View style={styles.historyRow}>
                 <Text style={styles.historyKey}>Impostos</Text>
                 <Text style={styles.historyVal}>
-                  {formatCurrency(invoice.taxes || 0)}
+                  {shouldMaskSensitiveData
+                    ? "Valor oculto"
+                    : formatCurrency(invoice.taxes || 0)}
                 </Text>
               </View>
               <View style={styles.historyRow}>
                 <Text style={styles.historyKey}>Desconto</Text>
                 <Text style={styles.historyVal}>
-                  {formatCurrency(invoice.discount || 0)}
+                  {shouldMaskSensitiveData
+                    ? "Valor oculto"
+                    : formatCurrency(invoice.discount || 0)}
                 </Text>
               </View>
               <View style={styles.historyRow}>
                 <Text style={styles.historyKey}>Total</Text>
                 <Text style={[styles.historyVal, styles.totalHighlight]}>
-                  {formatCurrency(invoice.totalValue || 0)}
+                  {shouldMaskSensitiveData
+                    ? "Valor oculto"
+                    : formatCurrency(invoice.totalValue || 0)}
                 </Text>
               </View>
             </View>

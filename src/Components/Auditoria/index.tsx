@@ -227,7 +227,31 @@ export const AuditoriaScreen: React.FC = () => {
   };
 
   const getResponsavelNome = (log: AuditoriaLog) => {
-    return log.funcionarioNome || "Responsável não informado";
+    const nomeResponsavel = (log.funcionarioNome || "").trim();
+    const nomeGenerico = /^(usu[aá]rio|usuario|user)$/i.test(nomeResponsavel);
+
+    if (log.qualificacao === "outro") {
+      if (nomeResponsavel && !nomeGenerico) {
+        return nomeResponsavel;
+      }
+
+      if (company?.ownerName?.trim()) {
+        return company.ownerName.trim();
+      }
+
+      const nomeUsuario = (user?.name || "").trim();
+      if (nomeUsuario && !/^(usu[aá]rio|usuario|user)$/i.test(nomeUsuario)) {
+        return nomeUsuario;
+      }
+
+      if (user?.email) {
+        return user.email;
+      }
+
+      return "Proprietário";
+    }
+
+    return nomeResponsavel || "Responsável não informado";
   };
 
   const getActionIcon = (acao: string) => {

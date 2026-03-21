@@ -15,6 +15,7 @@ import { ContaReceber } from "../domains/financeiro/contas";
 import { useAuth } from "./AuthContext";
 import { useFuncionario } from "./FuncionarioContext";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface ReceivablesContextType {
   contasReceber: ContaReceber[];
@@ -67,6 +68,15 @@ export function ReceivablesProvider({
   const [contasReceber, setContasReceber] = useState<ContaReceber[]>([]);
   const [isLoadingContasReceber, setIsLoadingContasReceber] = useState(false);
 
+  const assertCanWrite = async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+    await requireDeviceSecurity("executar esta ação");
+  };
+
   const loadContasReceber = async () => {
     if (!company?.companyId) return;
 
@@ -106,6 +116,7 @@ export function ReceivablesProvider({
       "contaReceberId" | "companyId" | "status" | "createdAt" | "updatedAt"
     >,
   ) => {
+    await assertCanWrite();
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     const docRef = await addDoc(collection(db, "contas_receber"), {
@@ -160,6 +171,7 @@ export function ReceivablesProvider({
     primeiraDataVencimento: Date;
     formaPagamento?: string;
   }) => {
+    await assertCanWrite();
     const {
       clienteId,
       clienteNome,
@@ -209,6 +221,7 @@ export function ReceivablesProvider({
     contaReceberId: string,
     formaPagamento: string,
   ) => {
+    await assertCanWrite();
     await updateDoc(doc(db, "contas_receber", contaReceberId), {
       status: "pago",
       formaPagamento,
@@ -245,6 +258,11 @@ export function ReceivablesProvider({
   };
 
   const atualizarAtrasos = async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
     const hoje = new Date();
     const pendentes = contasReceber.filter(
       (item) => item.status === "pendente" && item.dataVencimento < hoje,

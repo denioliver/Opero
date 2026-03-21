@@ -18,6 +18,7 @@ import { formatCurrencyBRL } from "../utils/formatters";
 import { useAuth } from "./AuthContext";
 import { useFuncionario } from "./FuncionarioContext";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface OrdersContextType {
   orders: ServiceOrder[];
@@ -52,6 +53,15 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+
+  const assertCanWrite = async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+    await requireDeviceSecurity("executar esta ação");
+  };
 
   const loadOrders = async (status?: OrderStatus) => {
     if (!company?.companyId) return;
@@ -96,6 +106,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const addOrder = async (
     order: Omit<ServiceOrder, "orderId" | "createdAt" | "updatedAt">,
   ) => {
+    await assertCanWrite();
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     const roundCurrency = (value: number) =>
@@ -247,6 +258,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     orderId: string,
     updates: Partial<ServiceOrder>,
   ) => {
+    await assertCanWrite();
     try {
       await updateDoc(doc(db, "orders", orderId), {
         ...updates,
@@ -299,6 +311,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       formaPagamento?: string;
     },
   ) => {
+    await assertCanWrite();
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     const order = orders.find((item) => item.orderId === orderId);
@@ -422,6 +435,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteOrder = async (orderId: string) => {
+    await assertCanWrite();
     try {
       await deleteDoc(doc(db, "orders", orderId));
       setOrders((prev) => prev.filter((o) => o.orderId !== orderId));

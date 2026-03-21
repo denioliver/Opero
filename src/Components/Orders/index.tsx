@@ -16,6 +16,7 @@ import { useClients } from "../../contexts/ClientsContext";
 import { useProducts } from "../../contexts/ProductsContext";
 import { useCompany } from "../../contexts/CompanyContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import {
   formatCurrencyBRL,
   formatCurrencyInput,
@@ -68,8 +69,10 @@ function OrderForm({
   const { addOrder, updateOrder, isLoadingOrders } = useOrders();
   const { company } = useCompany();
   const { user } = useAuth();
+  const { funcionario } = useFuncionario();
   const { clientes, loadClientes, isLoading: isLoadingClientes } = useClients();
   const { products, loadProducts, isLoadingProducts } = useProducts();
+  const canWrite = !funcionario?.readOnlyAccess;
 
   const [selectedClientId, setSelectedClientId] = useState(
     order?.clientId || "",
@@ -177,6 +180,14 @@ function OrderForm({
   };
 
   const handleSubmit = async () => {
+    if (!canWrite) {
+      Alert.alert(
+        "Acesso",
+        "Este perfil possui apenas permissão de visualização.",
+      );
+      return;
+    }
+
     if (!selectedClientId) {
       Alert.alert("Validação", "Selecione um cliente.");
       return;
@@ -261,6 +272,14 @@ function OrderForm({
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Cliente</Text>
 
+          {!canWrite && (
+            <View style={styles.readonlyBadge}>
+              <Text style={styles.readonlyBadgeText}>
+                Modo leitura: dados sensíveis ocultos
+              </Text>
+            </View>
+          )}
+
           {isLoadingClientes ? (
             <ActivityIndicator size="small" color="#2563EB" />
           ) : (
@@ -271,7 +290,8 @@ function OrderForm({
                   <TouchableOpacity
                     key={cliente.id}
                     style={[styles.chip, selected && styles.chipActive]}
-                    onPress={() => setSelectedClientId(cliente.id)}
+                    onPress={() => canWrite && setSelectedClientId(cliente.id)}
+                    disabled={!canWrite}
                   >
                     <Text
                       style={[
@@ -279,7 +299,7 @@ function OrderForm({
                         selected && styles.chipTextActive,
                       ]}
                     >
-                      {cliente.nome}
+                      {canWrite ? cliente.nome : "Cliente oculto"}
                       {cliente.status === "bloqueado" ? " (Bloqueado)" : ""}
                     </Text>
                   </TouchableOpacity>
@@ -291,17 +311,19 @@ function OrderForm({
           <Text style={[styles.label, { marginTop: 10 }]}>Vendedor</Text>
           <TextInput
             style={styles.input}
-            value={sellerName}
+            value={canWrite ? sellerName : "Vendedor oculto"}
             onChangeText={setSellerName}
             placeholder="Nome do vendedor"
+            editable={canWrite}
           />
 
           <Text style={[styles.label, { marginTop: 10 }]}>ID do vendedor</Text>
           <TextInput
             style={styles.input}
-            value={sellerId}
+            value={canWrite ? sellerId : "ID oculto"}
             onChangeText={setSellerId}
             placeholder="Identificador do vendedor"
+            editable={canWrite}
           />
         </View>
 
@@ -317,6 +339,7 @@ function OrderForm({
                   key={product.productId}
                   style={[styles.chip, selected && styles.chipActive]}
                   onPress={() => {
+                    if (!canWrite) return;
                     setNewProductId(product.productId);
                     setNewUnitPrice(
                       formatCurrencyInput(
@@ -324,12 +347,12 @@ function OrderForm({
                       ),
                     );
                   }}
-                  disabled={isLoadingProducts}
+                  disabled={isLoadingProducts || !canWrite}
                 >
                   <Text
                     style={[styles.chipText, selected && styles.chipTextActive]}
                   >
-                    {product.name}
+                    {canWrite ? product.name : "Produto oculto"}
                   </Text>
                 </TouchableOpacity>
               );
@@ -344,6 +367,7 @@ function OrderForm({
                 value={newQuantity}
                 onChangeText={setNewQuantity}
                 keyboardType="decimal-pad"
+                editable={canWrite}
               />
             </View>
 
@@ -357,16 +381,19 @@ function OrderForm({
                 }
                 placeholder="0,00"
                 keyboardType="decimal-pad"
+                editable={canWrite}
               />
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleAddItem}
-          >
-            <Text style={styles.secondaryButtonText}>Adicionar item</Text>
-          </TouchableOpacity>
+          {canWrite && (
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleAddItem}
+            >
+              <Text style={styles.secondaryButtonText}>Adicionar item</Text>
+            </TouchableOpacity>
+          )}
 
           {items.map((item) => {
             const subtotal =
@@ -374,16 +401,23 @@ function OrderForm({
             return (
               <View key={item.id} style={styles.itemRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>{item.productName}</Text>
+                  <Text style={styles.itemName}>
+                    {canWrite ? item.productName : "Produto oculto"}
+                  </Text>
                   <Text style={styles.itemMeta}>
-                    {item.quantity} x{" "}
-                    {currency(toCurrencyNumber(item.unitPrice))}
+                    {canWrite
+                      ? `${item.quantity} x ${currency(toCurrencyNumber(item.unitPrice))}`
+                      : "Dados ocultos"}
                   </Text>
                 </View>
-                <Text style={styles.itemValue}>{currency(subtotal)}</Text>
-                <TouchableOpacity onPress={() => removeItem(item.id)}>
-                  <Text style={styles.removeText}>Remover</Text>
-                </TouchableOpacity>
+                <Text style={styles.itemValue}>
+                  {canWrite ? currency(subtotal) : "Valor oculto"}
+                </Text>
+                {canWrite && (
+                  <TouchableOpacity onPress={() => removeItem(item.id)}>
+                    <Text style={styles.removeText}>Remover</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -394,21 +428,33 @@ function OrderForm({
 
           <View style={styles.inlineRow}>
             <Text style={styles.rowLabel}>Total bruto</Text>
-            <Text style={styles.rowValue}>{currency(totalValue)}</Text>
+            <Text style={styles.rowValue}>
+              {canWrite ? currency(totalValue) : "Valor oculto"}
+            </Text>
           </View>
 
           <Text style={styles.label}>Desconto</Text>
-          <TextInput
-            style={styles.input}
-            value={discountInput}
-            onChangeText={(text) => setDiscountInput(formatCurrencyInput(text))}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-          />
+          {canWrite ? (
+            <TextInput
+              style={styles.input}
+              value={discountInput}
+              onChangeText={(text) =>
+                setDiscountInput(formatCurrencyInput(text))
+              }
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+            />
+          ) : (
+            <View style={[styles.input, styles.inputReadonly]}>
+              <Text style={styles.readonlyInputText}>Valor oculto</Text>
+            </View>
+          )}
 
           <View style={styles.inlineRow}>
             <Text style={styles.rowLabel}>Total final</Text>
-            <Text style={styles.rowValue}>{currency(finalTotal)}</Text>
+            <Text style={styles.rowValue}>
+              {canWrite ? currency(finalTotal) : "Valor oculto"}
+            </Text>
           </View>
 
           <Text style={styles.helperText}>
@@ -418,12 +464,19 @@ function OrderForm({
           <Text style={styles.label}>Observações</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            value={observations}
+            value={
+              canWrite
+                ? observations
+                : observations
+                  ? "Observação registrada"
+                  : "—"
+            }
             onChangeText={setObservations}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
             placeholder="Observações da ordem"
+            editable={canWrite}
           />
         </View>
       </ScrollView>
@@ -433,28 +486,32 @@ function OrderForm({
           <Text style={styles.cancelButtonText}>Cancelar</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.primaryButton,
-            (isSubmitting || isLoadingOrders) && styles.disabled,
-          ]}
-          onPress={handleSubmit}
-          disabled={isSubmitting || isLoadingOrders}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.primaryButtonText}>Salvar OS</Text>
-          )}
-        </TouchableOpacity>
+        {canWrite && (
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              (isSubmitting || isLoadingOrders) && styles.disabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={isSubmitting || isLoadingOrders}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Salvar OS</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
 }
 
 export function OrdersScreen() {
+  const { funcionario } = useFuncionario();
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const canWrite = !funcionario?.readOnlyAccess;
 
   if (showForm) {
     return (
@@ -479,6 +536,13 @@ export function OrdersScreen() {
         setShowForm(true);
       }}
       onAddNew={() => {
+        if (!canWrite) {
+          Alert.alert(
+            "Acesso",
+            "Este perfil possui apenas permissão de visualização.",
+          );
+          return;
+        }
         setSelectedOrder(null);
         setShowForm(true);
       }}
@@ -571,6 +635,28 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
     color: "#111827",
+  },
+  inputReadonly: {
+    backgroundColor: "#F9FAFB",
+    justifyContent: "center",
+  },
+  readonlyInputText: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  readonlyBadge: {
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  readonlyBadgeText: {
+    fontSize: 12,
+    color: "#92400E",
+    fontWeight: "600",
   },
   secondaryButton: {
     marginTop: 10,

@@ -15,6 +15,7 @@ import { ContaPagar } from "../domains/financeiro/contas";
 import { useAuth } from "./AuthContext";
 import { useFuncionario } from "./FuncionarioContext";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface PayablesContextType {
   contasPagar: ContaPagar[];
@@ -50,6 +51,15 @@ export function PayablesProvider({ children }: { children: React.ReactNode }) {
   const { funcionario } = useFuncionario();
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>([]);
   const [isLoadingContasPagar, setIsLoadingContasPagar] = useState(false);
+
+  const assertCanWrite = async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+    await requireDeviceSecurity("executar esta ação");
+  };
 
   const loadContasPagar = async () => {
     if (!company?.companyId) return;
@@ -93,6 +103,7 @@ export function PayablesProvider({ children }: { children: React.ReactNode }) {
       "contaPagarId" | "companyId" | "createdAt" | "updatedAt"
     >,
   ) => {
+    await assertCanWrite();
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     await addDoc(collection(db, "contas_pagar"), {
@@ -134,6 +145,7 @@ export function PayablesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const pagarConta = async (contaPagarId: string, formaPagamento: string) => {
+    await assertCanWrite();
     await updateDoc(doc(db, "contas_pagar", contaPagarId), {
       status: "pago",
       formaPagamento,
@@ -170,6 +182,7 @@ export function PayablesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const gerarRecorrencia = async (contaPagarId: string) => {
+    await assertCanWrite();
     const conta = contasPagar.find(
       (item) => item.contaPagarId === contaPagarId,
     );
@@ -199,6 +212,11 @@ export function PayablesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const atualizarAtrasosPagar = async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
     const hoje = new Date();
     const pendentes = contasPagar.filter(
       (item) => item.status === "pendente" && item.dataVencimento < hoje,

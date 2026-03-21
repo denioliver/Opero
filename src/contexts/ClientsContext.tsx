@@ -16,6 +16,7 @@ import { useCompany } from "./CompanyContext";
 import { useAuth } from "./AuthContext";
 import { useFuncionario } from "./FuncionarioContext";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface ClientsContextType {
   // Estado
@@ -62,6 +63,15 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const assertCanWrite = useCallback(async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+    await requireDeviceSecurity("executar esta ação");
+  }, [funcionario?.readOnlyAccess]);
+
   /**
    * Carrega todos os clientes da empresa
    */
@@ -105,6 +115,8 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
         "id" | "empresaId" | "createdAt" | "createdBy" | "updatedAt" | "status"
       >,
     ): Promise<string> => {
+      await assertCanWrite();
+
       if (!company?.companyId || !user?.id) {
         throw new Error("Empresa ou usuário não disponível");
       }
@@ -170,7 +182,7 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, user?.id, loadClientes],
+    [assertCanWrite, company?.companyId, user?.id, loadClientes],
   );
 
   /**
@@ -217,6 +229,8 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
         Omit<Cliente, "id" | "empresaId" | "createdAt" | "createdBy">
       >,
     ) => {
+      await assertCanWrite();
+
       if (!company?.companyId || !user?.id) {
         throw new Error("Empresa ou usuário não disponível");
       }
@@ -279,7 +293,7 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, user?.id, loadClientes],
+    [assertCanWrite, company?.companyId, user?.id, loadClientes],
   );
 
   /**
@@ -287,6 +301,8 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
    */
   const deleteCliente = useCallback(
     async (clienteId: string) => {
+      await assertCanWrite();
+
       if (!company?.companyId) {
         throw new Error("Empresa não disponível");
       }
@@ -341,6 +357,7 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [
+      assertCanWrite,
       company?.companyId,
       user?.id,
       user?.name,

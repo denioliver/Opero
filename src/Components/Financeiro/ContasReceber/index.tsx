@@ -9,9 +9,11 @@ import {
   View,
 } from "react-native";
 import { useReceivables } from "../../../contexts/ReceivablesContext";
+import { useFuncionario } from "../../../contexts/FuncionarioContext";
 import { formatCurrencyBRL, formatDateBRL } from "../../../utils/formatters";
 
 export function ContasReceberScreen() {
+  const { funcionario } = useFuncionario();
   const {
     contasReceber,
     isLoadingContasReceber,
@@ -19,6 +21,7 @@ export function ContasReceberScreen() {
     baixarPagamento,
     atualizarAtrasos,
   } = useReceivables();
+  const canWrite = !funcionario?.readOnlyAccess;
 
   useEffect(() => {
     loadContasReceber().then(atualizarAtrasos).catch(console.error);
@@ -45,6 +48,11 @@ export function ContasReceberScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Contas a Receber</Text>
+        {!canWrite && (
+          <Text style={styles.subtitle}>
+            Modo leitura: dados sensíveis ocultos
+          </Text>
+        )}
       </View>
 
       <FlatList
@@ -55,10 +63,12 @@ export function ContasReceberScreen() {
           <View style={styles.card}>
             <View style={styles.rowBetween}>
               <Text style={styles.clientText}>
-                {item.clienteNome || item.clienteId}
+                {canWrite
+                  ? item.clienteNome || item.clienteId
+                  : "Cliente oculto"}
               </Text>
               <Text style={styles.valueText}>
-                {formatCurrencyBRL(item.valor)}
+                {canWrite ? formatCurrencyBRL(item.valor) : "Valor oculto"}
               </Text>
             </View>
 
@@ -80,7 +90,7 @@ export function ContasReceberScreen() {
               </View>
             </View>
 
-            {item.status !== "pago" && (
+            {canWrite && item.status !== "pago" && (
               <TouchableOpacity
                 style={styles.payButton}
                 onPress={() => handleBaixar(item.contaReceberId)}
@@ -107,6 +117,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   title: { fontSize: 22, fontWeight: "700", color: "#1F2937" },
+  subtitle: { fontSize: 12, color: "#92400E", marginTop: 2, fontWeight: "600" },
   listContent: { padding: 10, gap: 8 },
   card: {
     backgroundColor: "#fff",

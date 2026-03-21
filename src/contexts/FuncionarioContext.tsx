@@ -3,9 +3,19 @@
  * Gerencia a sessão do funcionário logado (nome + senha, sem Firebase)
  */
 
-import React, { createContext, useState, useContext, useCallback } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useCallback,
+  useEffect,
+} from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FuncionarioContexto } from "../domains/auth/types";
 import { autenticarFuncionarioPorNome } from "../services/firebase/funcionarioService";
+
+const FUNCIONARIO_SESSION_KEY = "@opero:funcionario_session";
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface FuncionarioContextType {
   // Sessão do funcionário logado
@@ -13,11 +23,12 @@ interface FuncionarioContextType {
 
   // Estados
   isLoading: boolean;
+  isHydrating: boolean;
   error: string | null;
 
   // Métodos
   loginFuncionario: (nome: string, senha: string) => Promise<void>;
-  logoutFuncionario: () => void;
+  logoutFuncionario: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -32,7 +43,48 @@ export const FuncionarioProvider: React.FC<{ children: React.ReactNode }> = ({
     null,
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(FUNCIONARIO_SESSION_KEY);
+        if (!raw) return;
+
+        const parsed = JSON.parse(raw) as {
+          data: FuncionarioContexto;
+          sessionStartedAt: number;
+        };
+
+        if (!parsed?.data?.funcionarioId || !parsed?.data?.empresaId) {
+          await AsyncStorage.removeItem(FUNCIONARIO_SESSION_KEY);
+          return;
+        }
+
+        if (
+          parsed?.sessionStartedAt &&
+          Date.now() - parsed.sessionStartedAt > SESSION_MAX_AGE_MS
+        ) {
+          await AsyncStorage.removeItem(FUNCIONARIO_SESSION_KEY);
+          return;
+        }
+
+        setFuncionario(parsed.data);
+        console.log(
+          "[FuncionarioContext] Sessão restaurada:",
+          parsed.data.funcionarioNome,
+        );
+      } catch (err) {
+        console.error("[FuncionarioContext] Erro ao restaurar sessão:", err);
+        await AsyncStorage.removeItem(FUNCIONARIO_SESSION_KEY);
+      } finally {
+        setIsHydrating(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
 
   const loginFuncionario = useCallback(async (nome: string, senha: string) => {
     setIsLoading(true);
@@ -46,17 +98,27 @@ export const FuncionarioProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Configurar sessão do funcionário
-      setFuncionario({
+      const nextSession: FuncionarioContexto = {
         funcionarioId: funcionarioData.id,
         funcionarioNome: funcionarioData.nome,
         qualificacao: funcionarioData.qualificacao,
         empresaId: funcionarioData.empresaId,
+        readOnlyAccess: !!funcionarioData.readOnlyAccess,
         canAccessAdminCards: !!funcionarioData.canAccessAdminCards,
         canAccessFinancialDashboard:
           funcionarioData.canAccessFinancialDashboard !== false,
         adminPermissions: funcionarioData.adminPermissions,
         homePermissions: funcionarioData.homePermissions,
-      });
+      };
+
+      setFuncionario(nextSession);
+      await AsyncStorage.setItem(
+        FUNCIONARIO_SESSION_KEY,
+        JSON.stringify({
+          data: nextSession,
+          sessionStartedAt: Date.now(),
+        }),
+      );
 
       console.log("[FuncionarioContext] Funcionário logado:", nome);
     } catch (err) {
@@ -70,9 +132,10 @@ export const FuncionarioProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const logoutFuncionario = useCallback(() => {
+  const logoutFuncionario = useCallback(async () => {
     setFuncionario(null);
     setError(null);
+    await AsyncStorage.removeItem(FUNCIONARIO_SESSION_KEY);
     console.log("[FuncionarioContext] Funcionário deslogado");
   }, []);
 
@@ -83,6 +146,7 @@ export const FuncionarioProvider: React.FC<{ children: React.ReactNode }> = ({
   const value: FuncionarioContextType = {
     funcionario,
     isLoading,
+    isHydrating,
     error,
     loginFuncionario,
     logoutFuncionario,

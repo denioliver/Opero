@@ -25,6 +25,7 @@ import {
 } from "../domains/produtos/movimentacao";
 import * as productService from "../services/firebase/productService";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface ProductsContextType {
   // Produtos
@@ -112,24 +113,50 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     RelatorioGiroEstoque[]
   >([]);
 
+  const assertCanWrite = async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+    await requireDeviceSecurity("executar esta ação");
+  };
+
   const getActor = useCallback(() => {
-    if (!company?.companyId || !user?.id) {
+    if (!company?.companyId) {
       return null;
     }
 
-    return funcionario
-      ? {
-          funcionarioId: funcionario.funcionarioId,
-          funcionarioNome: funcionario.funcionarioNome,
-          qualificacao: funcionario.qualificacao,
-          empresaId: company.companyId,
-        }
-      : {
-          funcionarioId: user.id,
-          funcionarioNome: user.name || user.email,
-          qualificacao: "outro" as const,
-          empresaId: company.companyId,
-        };
+    if (funcionario) {
+      return {
+        funcionarioId: funcionario.funcionarioId,
+        funcionarioNome: funcionario.funcionarioNome,
+        qualificacao: funcionario.qualificacao,
+        empresaId: company.companyId,
+      };
+    }
+
+    if (!user?.id) {
+      return null;
+    }
+
+    const nomeUsuario = (user.name || "").trim();
+    const nomeProprietario = (company.ownerName || "").trim();
+    const nomeGenerico = /^(usu[aá]rio|usuario|user)$/i.test(nomeUsuario);
+    const proprietarioGenerico = /^(usu[aá]rio|usuario|user)$/i.test(
+      nomeProprietario,
+    );
+
+    return {
+      funcionarioId: user.id,
+      funcionarioNome:
+        (!nomeGenerico && nomeUsuario) ||
+        (!proprietarioGenerico && nomeProprietario) ||
+        user.email ||
+        "Proprietário",
+      qualificacao: "outro" as const,
+      empresaId: company.companyId,
+    };
   }, [company?.companyId, funcionario, user?.email, user?.id, user?.name]);
 
   const loadProducts = useCallback(async () => {
@@ -167,6 +194,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const addProduct = async (
     product: Omit<Product, "productId" | "createdAt" | "updatedAt">,
   ) => {
+    await assertCanWrite();
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     try {
@@ -214,6 +242,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     productId: string,
     updates: Partial<Product>,
   ) => {
+    await assertCanWrite();
     try {
       await updateDoc(doc(db, "products", productId), {
         ...updates,
@@ -246,6 +275,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteProduct = async (productId: string) => {
+    await assertCanWrite();
     try {
       // Soft delete: apenas marcar como inativo
       await updateDoc(doc(db, "products", productId), {
@@ -278,6 +308,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     quantidade: number,
     dados: any,
   ) => {
+    await assertCanWrite();
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     try {

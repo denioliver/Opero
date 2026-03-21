@@ -69,6 +69,7 @@ export interface Funcionario {
   nome: string;
   senha: string; // Hash bcrypt
   qualificacao: FuncionarioQualificacao;
+  readOnlyAccess?: boolean;
   canAccessAdminCards?: boolean;
   canAccessFinancialDashboard?: boolean;
   adminPermissions?: AdminPermissions;
@@ -141,6 +142,7 @@ export interface FuncionarioContexto {
   funcionarioNome: string;
   qualificacao: FuncionarioQualificacao;
   empresaId: string;
+  readOnlyAccess?: boolean;
   canAccessAdminCards?: boolean;
   canAccessFinancialDashboard?: boolean;
   adminPermissions?: AdminPermissions;

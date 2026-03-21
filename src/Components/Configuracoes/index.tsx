@@ -19,6 +19,12 @@ import {
   formatZipCode,
 } from "../../utils/formatters";
 import { fetchAddressByCEP } from "../../utils/brazilData";
+import {
+  maskAddressLine,
+  maskDocument,
+  maskEmail,
+  maskPhone,
+} from "../../utils/privacy";
 
 interface CompanyFormState {
   name: string;
@@ -65,10 +71,12 @@ export const ConfiguracoesScreen: React.FC = () => {
   const lastAutoCepRef = useRef("");
 
   const isProprietario = user?.role === "users";
+  const isReadOnlyFuncionario = !!funcionario?.readOnlyAccess;
   const canEditCompany = useMemo(() => {
+    if (isReadOnlyFuncionario) return false;
     if (isProprietario) return true;
     return !!funcionario?.canAccessAdminCards;
-  }, [isProprietario, funcionario?.canAccessAdminCards]);
+  }, [isReadOnlyFuncionario, isProprietario, funcionario?.canAccessAdminCards]);
 
   useEffect(() => {
     if (!company) return;
@@ -244,7 +252,7 @@ export const ConfiguracoesScreen: React.FC = () => {
           {!canEditCompany && (
             <View style={styles.readonlyBadge}>
               <Text style={styles.readonlyBadgeText}>
-                Modo leitura para este usuário
+                Modo leitura para este usuário (dados sensíveis mascarados)
               </Text>
             </View>
           )}
@@ -262,7 +270,11 @@ export const ConfiguracoesScreen: React.FC = () => {
             <View style={[styles.fieldGroup, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.label}>CNPJ</Text>
               <TextInput
-                value={formData.cnpj}
+                value={
+                  isReadOnlyFuncionario
+                    ? maskDocument(formData.cnpj)
+                    : formData.cnpj
+                }
                 editable={false}
                 style={[styles.input, styles.inputReadonly]}
               />
@@ -270,7 +282,11 @@ export const ConfiguracoesScreen: React.FC = () => {
             <View style={[styles.fieldGroup, { flex: 1 }]}>
               <Text style={styles.label}>Telefone</Text>
               <TextInput
-                value={formData.phone}
+                value={
+                  isReadOnlyFuncionario
+                    ? maskPhone(formData.phone)
+                    : formData.phone
+                }
                 onChangeText={(value) => updateField("phone", value)}
                 editable={canEditCompany && !isSaving}
                 style={styles.input}
@@ -282,7 +298,11 @@ export const ConfiguracoesScreen: React.FC = () => {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>E-mail da empresa</Text>
             <TextInput
-              value={formData.email}
+              value={
+                isReadOnlyFuncionario
+                  ? maskEmail(formData.email)
+                  : formData.email
+              }
               onChangeText={(value) => updateField("email", value)}
               editable={canEditCompany && !isSaving}
               style={styles.input}
@@ -303,7 +323,11 @@ export const ConfiguracoesScreen: React.FC = () => {
             <View style={[styles.fieldGroup, { flex: 1 }]}>
               <Text style={styles.label}>E-mail do proprietário</Text>
               <TextInput
-                value={formData.ownerEmail}
+                value={
+                  isReadOnlyFuncionario
+                    ? maskEmail(formData.ownerEmail)
+                    : formData.ownerEmail
+                }
                 editable={false}
                 style={[styles.input, styles.inputReadonly]}
               />
@@ -313,7 +337,11 @@ export const ConfiguracoesScreen: React.FC = () => {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Rua</Text>
             <TextInput
-              value={formData.street}
+              value={
+                isReadOnlyFuncionario
+                  ? maskAddressLine(formData.street)
+                  : formData.street
+              }
               onChangeText={(value) => updateField("street", value)}
               editable={canEditCompany && !isSaving}
               style={styles.input}
@@ -324,7 +352,7 @@ export const ConfiguracoesScreen: React.FC = () => {
             <View style={[styles.fieldGroup, { flex: 0.7, marginRight: 8 }]}>
               <Text style={styles.label}>Número</Text>
               <TextInput
-                value={formData.number}
+                value={isReadOnlyFuncionario ? "—" : formData.number}
                 onChangeText={(value) => updateField("number", value)}
                 editable={canEditCompany && !isSaving}
                 style={styles.input}
@@ -333,7 +361,7 @@ export const ConfiguracoesScreen: React.FC = () => {
             <View style={[styles.fieldGroup, { flex: 1.3 }]}>
               <Text style={styles.label}>Complemento</Text>
               <TextInput
-                value={formData.complement}
+                value={isReadOnlyFuncionario ? "—" : formData.complement}
                 onChangeText={(value) => updateField("complement", value)}
                 editable={canEditCompany && !isSaving}
                 style={styles.input}
@@ -365,7 +393,7 @@ export const ConfiguracoesScreen: React.FC = () => {
               <Text style={styles.label}>CEP</Text>
               <View style={{ position: "relative" }}>
                 <TextInput
-                  value={formData.zipCode}
+                  value={isReadOnlyFuncionario ? "*****-***" : formData.zipCode}
                   onChangeText={(value) => updateField("zipCode", value)}
                   onBlur={() => handleFetchCEPData(formData.zipCode)}
                   editable={canEditCompany && !isSaving && !isFetchingCEP}

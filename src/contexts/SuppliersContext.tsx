@@ -13,6 +13,7 @@ import { useCompany } from "./CompanyContext";
 import { useAuth } from "./AuthContext";
 import { useFuncionario } from "./FuncionarioContext";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface SuppliersContextType {
   fornecedores: Fornecedor[];
@@ -67,24 +68,50 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const assertCanWrite = useCallback(async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+    await requireDeviceSecurity("executar esta ação");
+  }, [funcionario?.readOnlyAccess]);
+
   const getActor = useCallback(() => {
-    if (!company?.companyId || !user?.id) {
+    if (!company?.companyId) {
       return null;
     }
 
-    return funcionario
-      ? {
-          funcionarioId: funcionario.funcionarioId,
-          funcionarioNome: funcionario.funcionarioNome,
-          qualificacao: funcionario.qualificacao,
-          empresaId: company.companyId,
-        }
-      : {
-          funcionarioId: user.id,
-          funcionarioNome: user.name || user.email,
-          qualificacao: "outro" as const,
-          empresaId: company.companyId,
-        };
+    if (funcionario) {
+      return {
+        funcionarioId: funcionario.funcionarioId,
+        funcionarioNome: funcionario.funcionarioNome,
+        qualificacao: funcionario.qualificacao,
+        empresaId: company.companyId,
+      };
+    }
+
+    if (!user?.id) {
+      return null;
+    }
+
+    const nomeUsuario = (user.name || "").trim();
+    const nomeProprietario = (company.ownerName || "").trim();
+    const nomeGenerico = /^(usu[aá]rio|usuario|user)$/i.test(nomeUsuario);
+    const proprietarioGenerico = /^(usu[aá]rio|usuario|user)$/i.test(
+      nomeProprietario,
+    );
+
+    return {
+      funcionarioId: user.id,
+      funcionarioNome:
+        (!nomeGenerico && nomeUsuario) ||
+        (!proprietarioGenerico && nomeProprietario) ||
+        user.email ||
+        "Proprietário",
+      qualificacao: "outro" as const,
+      empresaId: company.companyId,
+    };
   }, [company?.companyId, funcionario, user?.email, user?.id, user?.name]);
 
   const loadFornecedores = useCallback(async () => {
@@ -112,7 +139,9 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         "id" | "empresaId" | "createdAt" | "createdBy" | "updatedAt" | "status"
       >,
     ): Promise<string> => {
-      if (!company?.companyId || !user?.id) {
+      await assertCanWrite();
+
+      if (!company?.companyId || (!user?.id && !funcionario?.funcionarioId)) {
         throw new Error("Empresa ou usuário não disponível");
       }
 
@@ -131,7 +160,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         const fornecedorId = await createSupplier(
           company.companyId,
           data,
-          user.id,
+          user?.id || funcionario?.funcionarioId || "usuario_indefinido",
         );
 
         const actor = getActor();
@@ -160,7 +189,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, user?.id, getActor, loadFornecedores],
+    [assertCanWrite, company?.companyId, user?.id, getActor, loadFornecedores],
   );
 
   const selectFornecedor = useCallback(
@@ -198,6 +227,8 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         Omit<Fornecedor, "id" | "empresaId" | "createdAt" | "createdBy">
       >,
     ) => {
+      await assertCanWrite();
+
       if (!company?.companyId) {
         throw new Error("Empresa não disponível");
       }
@@ -243,11 +274,13 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, getActor, loadFornecedores],
+    [assertCanWrite, company?.companyId, getActor, loadFornecedores],
   );
 
   const deleteFornecedor = useCallback(
     async (fornecedorId: string) => {
+      await assertCanWrite();
+
       if (!company?.companyId) {
         throw new Error("Empresa não disponível");
       }
@@ -286,7 +319,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, getActor, fornecedorSelecionado?.id],
+    [assertCanWrite, company?.companyId, getActor, fornecedorSelecionado?.id],
   );
 
   const verificarDocumentoFornecedor = useCallback(
@@ -314,6 +347,8 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         produtoIds?: string[];
       },
     ) => {
+      await assertCanWrite();
+
       if (!company?.companyId) {
         throw new Error("Empresa não disponível");
       }
@@ -351,7 +386,7 @@ export function SuppliersProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [company?.companyId, getActor, loadFornecedores],
+    [assertCanWrite, company?.companyId, getActor, loadFornecedores],
   );
 
   const clearError = () => setError(null);

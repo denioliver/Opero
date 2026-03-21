@@ -12,12 +12,19 @@ import {
 import { Fornecedor } from "../../domains/fornecedores/types";
 import { useSuppliers } from "../../contexts/SuppliersContext";
 import { useProducts } from "../../contexts/ProductsContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import {
   formatCurrencyBRL,
   formatCurrencyInput,
   formatDateBRL,
   parseCurrencyInput,
 } from "../../utils/formatters";
+import {
+  maskAddressLine,
+  maskDocument,
+  maskEmail,
+  maskPhone,
+} from "../../utils/privacy";
 
 interface SupplierProfileProps {
   fornecedorId: string;
@@ -36,7 +43,10 @@ export function SupplierProfile({
     registrarCompraFornecedor,
     isLoading,
   } = useSuppliers();
+  const { funcionario } = useFuncionario();
   const { products, loadProducts } = useProducts();
+  const shouldMaskSensitiveData = !!funcionario?.readOnlyAccess;
+  const canWrite = !funcionario?.readOnlyAccess;
   const [activeTab, setActiveTab] = useState<"dados" | "compras">("dados");
 
   const [compraValor, setCompraValor] = useState("0,00");
@@ -142,9 +152,13 @@ export function SupplierProfile({
           ) : null}
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{fornecedor.nome}</Text>
-            <Text style={styles.subtitle}>{fornecedor.cpfCnpj}</Text>
+            <Text style={styles.subtitle}>
+              {shouldMaskSensitiveData
+                ? maskDocument(fornecedor.cpfCnpj)
+                : fornecedor.cpfCnpj}
+            </Text>
           </View>
-          {onEdit ? (
+          {onEdit && canWrite ? (
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => onEdit(fornecedor)}
@@ -187,12 +201,34 @@ export function SupplierProfile({
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {shouldMaskSensitiveData && (
+          <View style={styles.readonlyBadge}>
+            <Text style={styles.readonlyBadgeText}>
+              Modo leitura: dados sensíveis ocultos
+            </Text>
+          </View>
+        )}
+
         {activeTab === "dados" ? (
           <>
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Contato</Text>
-              <InfoRow label="Telefone" value={fornecedor.telefone || "—"} />
-              <InfoRow label="E-mail" value={fornecedor.email || "—"} />
+              <InfoRow
+                label="Telefone"
+                value={
+                  shouldMaskSensitiveData
+                    ? maskPhone(fornecedor.telefone)
+                    : fornecedor.telefone || "—"
+                }
+              />
+              <InfoRow
+                label="E-mail"
+                value={
+                  shouldMaskSensitiveData
+                    ? maskEmail(fornecedor.email)
+                    : fornecedor.email || "—"
+                }
+              />
             </View>
 
             <View style={styles.card}>
@@ -200,9 +236,15 @@ export function SupplierProfile({
               <InfoRow
                 label="Logradouro"
                 value={
-                  fornecedor.endereco
-                    ? `${fornecedor.endereco.rua}, ${fornecedor.endereco.numero}`
-                    : "—"
+                  shouldMaskSensitiveData
+                    ? maskAddressLine(
+                        fornecedor.endereco
+                          ? `${fornecedor.endereco.rua}, ${fornecedor.endereco.numero}`
+                          : "",
+                      )
+                    : fornecedor.endereco
+                      ? `${fornecedor.endereco.rua}, ${fornecedor.endereco.numero}`
+                      : "—"
                 }
               />
               <InfoRow
@@ -213,7 +255,14 @@ export function SupplierProfile({
                     : "—"
                 }
               />
-              <InfoRow label="CEP" value={fornecedor.endereco?.cep || "—"} />
+              <InfoRow
+                label="CEP"
+                value={
+                  shouldMaskSensitiveData
+                    ? maskDocument(fornecedor.endereco?.cep)
+                    : fornecedor.endereco?.cep || "—"
+                }
+              />
             </View>
 
             <View style={styles.card}>
@@ -252,66 +301,72 @@ export function SupplierProfile({
               />
               <InfoRow
                 label="Total comprado"
-                value={formatCurrencyBRL(totalComprado)}
-              />
-            </View>
-
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Registrar compra</Text>
-
-              <Text style={styles.label}>Valor *</Text>
-              <TextInput
-                style={styles.input}
-                value={compraValor}
-                onChangeText={(text) =>
-                  setCompraValor(formatCurrencyInput(text))
+                value={
+                  shouldMaskSensitiveData
+                    ? "Valor oculto"
+                    : formatCurrencyBRL(totalComprado)
                 }
-                keyboardType="decimal-pad"
-                placeholder="0,00"
               />
-
-              <Text style={styles.label}>Descrição</Text>
-              <TextInput
-                style={styles.input}
-                value={compraDescricao}
-                onChangeText={setCompraDescricao}
-                placeholder="Observação da compra"
-              />
-
-              <Text style={styles.label}>Produtos vinculados na compra</Text>
-              <View style={styles.chipsWrap}>
-                {linkedProducts.map((product) => {
-                  const selected = selectedProductIds.includes(
-                    product.productId,
-                  );
-                  return (
-                    <TouchableOpacity
-                      key={product.productId}
-                      style={[styles.chip, selected && styles.chipActive]}
-                      onPress={() =>
-                        handleTogglePurchaseProduct(product.productId)
-                      }
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          selected && styles.chipTextActive,
-                        ]}
-                      >
-                        {product.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleRegisterPurchase}
-              >
-                <Text style={styles.saveButtonText}>Registrar compra</Text>
-              </TouchableOpacity>
             </View>
+
+            {canWrite && (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Registrar compra</Text>
+
+                <Text style={styles.label}>Valor *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={compraValor}
+                  onChangeText={(text) =>
+                    setCompraValor(formatCurrencyInput(text))
+                  }
+                  keyboardType="decimal-pad"
+                  placeholder="0,00"
+                />
+
+                <Text style={styles.label}>Descrição</Text>
+                <TextInput
+                  style={styles.input}
+                  value={compraDescricao}
+                  onChangeText={setCompraDescricao}
+                  placeholder="Observação da compra"
+                />
+
+                <Text style={styles.label}>Produtos vinculados na compra</Text>
+                <View style={styles.chipsWrap}>
+                  {linkedProducts.map((product) => {
+                    const selected = selectedProductIds.includes(
+                      product.productId,
+                    );
+                    return (
+                      <TouchableOpacity
+                        key={product.productId}
+                        style={[styles.chip, selected && styles.chipActive]}
+                        onPress={() =>
+                          handleTogglePurchaseProduct(product.productId)
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            selected && styles.chipTextActive,
+                          ]}
+                        >
+                          {product.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleRegisterPurchase}
+                >
+                  <Text style={styles.saveButtonText}>Registrar compra</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Histórico de compras</Text>
@@ -324,10 +379,16 @@ export function SupplierProfile({
                       {formatDateBRL(compra.data)}
                     </Text>
                     <Text style={styles.historyValue}>
-                      {formatCurrencyBRL(compra.valor || 0)}
+                      {shouldMaskSensitiveData
+                        ? "Valor oculto"
+                        : formatCurrencyBRL(compra.valor || 0)}
                     </Text>
                     {compra.descricao ? (
-                      <Text style={styles.historyDesc}>{compra.descricao}</Text>
+                      <Text style={styles.historyDesc}>
+                        {shouldMaskSensitiveData
+                          ? "Descrição oculta"
+                          : compra.descricao}
+                      </Text>
                     ) : null}
                     {compra.produtoIds?.length ? (
                       <Text style={styles.historyMeta}>
@@ -405,6 +466,19 @@ const styles = StyleSheet.create({
   tabText: { color: "#6B7280", fontWeight: "500" },
   tabTextActive: { color: "#2563EB", fontWeight: "700" },
   content: { padding: 16, gap: 12 },
+  readonlyBadge: {
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  readonlyBadgeText: {
+    fontSize: 12,
+    color: "#92400E",
+    fontWeight: "600",
+  },
   card: {
     backgroundColor: "#fff",
     borderWidth: 1,

@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -35,9 +36,10 @@ if (missingVars.length > 0) {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Authentication SEM persistência
-// O usuário deve fazer login sempre que abrir o app
-export const auth = initializeAuth(app, {});
+// Initialize Firebase Authentication COM persistência local
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage),
+});
 
 // Initialize Firestore
 export const db = getFirestore(app);

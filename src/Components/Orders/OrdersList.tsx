@@ -10,6 +10,7 @@ import {
   TextInput,
 } from "react-native";
 import { useOrders } from "../../contexts/OrdersContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { ServiceOrder, OrderStatus } from "../../types";
 import { formatCurrencyBRL } from "../../utils/formatters";
 
@@ -41,8 +42,11 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 };
 
 export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
+  const { funcionario } = useFuncionario();
   const { orders, isLoadingOrders, loadOrders, deleteOrder, faturarOrder } =
     useOrders();
+  const canWrite = !funcionario?.readOnlyAccess;
+
   const [searchText, setSearchText] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -92,7 +96,7 @@ export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
           <View style={{ flex: 1 }}>
             <Text style={styles.orderNumber}>{item.orderNumber}</Text>
             <Text style={styles.clientName}>
-              {item.clientName || "Cliente"}
+              {canWrite ? item.clientName || "Cliente" : "Cliente oculto"}
             </Text>
           </View>
           <View
@@ -117,57 +121,59 @@ export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
           <View style={styles.tableLine}>
             <Text style={styles.tableKey}>Total</Text>
             <Text style={styles.totalValue}>
-              {formatCurrencyBRL(item.totalValue)}
+              {canWrite ? formatCurrencyBRL(item.totalValue) : "Valor oculto"}
             </Text>
           </View>
         </View>
       </TouchableOpacity>
 
-      <View style={styles.orderActions}>
-        {(item.status === "aberto" || item.status === "confirmada") && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.billButton]}
-            onPress={async () => {
-              try {
-                await faturarOrder(item.orderId, {
-                  parcelas: 1,
-                  formaPagamento: "boleto",
-                });
-                Alert.alert("Sucesso", "Pedido faturado com sucesso");
-              } catch (error) {
-                const message =
-                  error instanceof Error ? error.message : "Erro ao faturar";
-                Alert.alert("Erro", message);
-              }
-            }}
-          >
-            <Text style={[styles.actionButtonText, { color: "#7C3AED" }]}>
-              Faturar
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.editButton]}
-          onPress={() => onSelectOrder?.(item)}
-        >
-          <Text style={styles.actionButtonText}>Editar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDelete(item.orderId, item.orderNumber)}
-          disabled={deleting === item.orderId}
-        >
-          {deleting === item.orderId ? (
-            <ActivityIndicator size="small" color="#EF4444" />
-          ) : (
-            <Text style={[styles.actionButtonText, { color: "#EF4444" }]}>
-              Deletar
-            </Text>
+      {canWrite && (
+        <View style={styles.orderActions}>
+          {(item.status === "aberto" || item.status === "confirmada") && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.billButton]}
+              onPress={async () => {
+                try {
+                  await faturarOrder(item.orderId, {
+                    parcelas: 1,
+                    formaPagamento: "boleto",
+                  });
+                  Alert.alert("Sucesso", "Pedido faturado com sucesso");
+                } catch (error) {
+                  const message =
+                    error instanceof Error ? error.message : "Erro ao faturar";
+                  Alert.alert("Erro", message);
+                }
+              }}
+            >
+              <Text style={[styles.actionButtonText, { color: "#7C3AED" }]}>
+                Faturar
+              </Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.editButton]}
+            onPress={() => onSelectOrder?.(item)}
+          >
+            <Text style={styles.actionButtonText}>Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDelete(item.orderId, item.orderNumber)}
+            disabled={deleting === item.orderId}
+          >
+            {deleting === item.orderId ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Text style={[styles.actionButtonText, { color: "#EF4444" }]}>
+                Deletar
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
@@ -175,9 +181,16 @@ export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Ordens de Serviço</Text>
-        <TouchableOpacity style={styles.addButton} onPress={onAddNew}>
-          <Text style={styles.addButtonText}>+ Nova OS</Text>
-        </TouchableOpacity>
+        {!canWrite && (
+          <Text style={styles.subtitle}>
+            Modo leitura: dados sensíveis ocultos
+          </Text>
+        )}
+        {canWrite && (
+          <TouchableOpacity style={styles.addButton} onPress={onAddNew}>
+            <Text style={styles.addButtonText}>+ Nova OS</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.searchContainer}>
@@ -201,7 +214,7 @@ export function OrdersList({ onSelectOrder, onAddNew }: OrdersListProps) {
               ? "Nenhuma ordem encontrada"
               : "Você ainda não tem ordens de serviço"}
           </Text>
-          {!searchText && (
+          {!searchText && canWrite && (
             <TouchableOpacity style={styles.emptyButton} onPress={onAddNew}>
               <Text style={styles.emptyButtonText}>Criar Primeira Ordem</Text>
             </TouchableOpacity>
@@ -238,6 +251,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: "#92400E",
+    marginBottom: 12,
+    fontWeight: "600",
   },
   addButton: {
     backgroundColor: "#2563EB",

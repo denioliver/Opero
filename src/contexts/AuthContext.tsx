@@ -12,6 +12,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
 } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "../config/firebase";
 import { UserRole, UserContexto } from "../domains/auth/types";
 import {
@@ -33,6 +34,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AUTH_SESSION_STARTED_AT_KEY = "@opero:auth_session_started_at";
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const getErrorMessage = (errorCode: string): string => {
   const errorMessages: Record<string, string> = {
@@ -56,7 +59,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<UserContexto | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -82,6 +85,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
         try {
           if (firebaseUser) {
+            const rawStartedAt = await AsyncStorage.getItem(
+              AUTH_SESSION_STARTED_AT_KEY,
+            );
+            const sessionStartedAt = Number(rawStartedAt);
+
+            if (
+              rawStartedAt &&
+              !Number.isNaN(sessionStartedAt) &&
+              Date.now() - sessionStartedAt > SESSION_MAX_AGE_MS
+            ) {
+              await signOut(auth);
+              setUser(null);
+              setError("Sessão expirada. Faça login novamente.");
+              return;
+            }
+
+            if (!rawStartedAt) {
+              await AsyncStorage.setItem(
+                AUTH_SESSION_STARTED_AT_KEY,
+                String(Date.now()),
+              );
+            }
+
             // Buscar dados globais do usuário
             const usuarioGlobal = await obterUsuarioGlobal(firebaseUser.uid);
 
@@ -117,6 +143,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           } else {
             // Usuário deslogado
             setUser(null);
+            await AsyncStorage.removeItem(AUTH_SESSION_STARTED_AT_KEY);
           }
 
           // Marca que já inicializou na primeira resposta
@@ -157,6 +184,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       console.log("[AuthContext] Login sucesso:", result.user.email);
+      await AsyncStorage.setItem(
+        AUTH_SESSION_STARTED_AT_KEY,
+        String(Date.now()),
+      );
       // isLoading será setado para false quando onAuthStateChanged disparar
     } catch (err) {
       const errorCode = (err as any).code || "unknown";
@@ -189,6 +220,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         "users", // Nova role para proprietários
       );
 
+      await AsyncStorage.setItem(
+        AUTH_SESSION_STARTED_AT_KEY,
+        String(Date.now()),
+      );
+
       console.log("[AuthContext] Usuário registrado com sucesso");
     } catch (err) {
       const errorCode = (err as any).code || "unknown";
@@ -207,6 +243,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     try {
       await signOut(auth);
+      await AsyncStorage.removeItem(AUTH_SESSION_STARTED_AT_KEY);
       console.log("[AuthContext] Logout sucesso");
       // isLoading será setado para false quando onAuthStateChanged disparar
     } catch (err) {

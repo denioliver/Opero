@@ -53,6 +53,7 @@ export async function criarFuncionario(
   qualificacao: FuncionarioQualificacao,
   email?: string,
   telefone?: string,
+  readOnlyAccess: boolean = false,
   canAccessAdminCards: boolean = false,
   canAccessFinancialDashboard: boolean = false,
   adminPermissions?: AdminPermissions,
@@ -91,6 +92,7 @@ export async function criarFuncionario(
       nome: nomeLimpo,
       senha: senhaHash,
       qualificacao,
+      readOnlyAccess,
       canAccessAdminCards,
       canAccessFinancialDashboard,
       ...(canAccessAdminCards && adminPermissions

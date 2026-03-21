@@ -36,6 +36,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { formatDateBRL } from "../../utils/formatters";
+import { maskEmail, maskPhone } from "../../utils/privacy";
 
 const QUALIFICACOES: Array<{ label: string; value: FuncionarioQualificacao }> =
   [
@@ -71,6 +72,7 @@ export const AcessosScreen: React.FC = () => {
   const { user } = useAuth();
   const { funcionario } = useFuncionario();
   const isProprietario = user?.role === "users";
+  const shouldMaskSensitiveData = !!funcionario?.readOnlyAccess;
   const canAccessThisScreen =
     isProprietario ||
     (!!funcionario?.canAccessAdminCards &&
@@ -88,6 +90,7 @@ export const AcessosScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [senha, setSenha] = useState("");
+  const [readOnlyAccess, setReadOnlyAccess] = useState(false);
   const [canAccessAdminCards, setCanAccessAdminCards] = useState(false);
   const [canAccessFinancialDashboard, setCanAccessFinancialDashboard] =
     useState(false);
@@ -156,6 +159,7 @@ export const AcessosScreen: React.FC = () => {
     setEmail("");
     setTelefone("");
     setSenha("");
+    setReadOnlyAccess(false);
     setCanAccessAdminCards(false);
     setCanAccessFinancialDashboard(false);
     setHomePermissions(DEFAULT_HOME_PERMISSIONS);
@@ -174,6 +178,7 @@ export const AcessosScreen: React.FC = () => {
       setEmail(funcionario.email || "");
       setTelefone(funcionario.telefone || "");
       setSenha(""); // Não carrega senha anterior
+      setReadOnlyAccess(!!funcionario.readOnlyAccess);
       setCanAccessAdminCards(!!funcionario.canAccessAdminCards);
       setCanAccessFinancialDashboard(
         funcionario.canAccessFinancialDashboard !== false,
@@ -234,6 +239,7 @@ export const AcessosScreen: React.FC = () => {
           qualificacao: selectedQualificacao,
           email: email || undefined,
           telefone: telefone || undefined,
+          readOnlyAccess,
           canAccessAdminCards,
           canAccessFinancialDashboard,
           adminPermissions: canAccessAdminCards ? adminPermissions : {},
@@ -257,6 +263,7 @@ export const AcessosScreen: React.FC = () => {
             {
               funcionarioNome: nome,
               qualificacao: selectedQualificacao,
+              readOnlyAccess,
               canAccessAdminCards,
               canAccessFinancialDashboard,
               adminPermissions: canAccessAdminCards ? adminPermissions : null,
@@ -274,6 +281,7 @@ export const AcessosScreen: React.FC = () => {
           selectedQualificacao,
           email || undefined,
           telefone || undefined,
+          readOnlyAccess,
           canAccessAdminCards,
           canAccessFinancialDashboard,
           canAccessAdminCards ? adminPermissions : undefined,
@@ -291,6 +299,7 @@ export const AcessosScreen: React.FC = () => {
             {
               funcionarioNome: nome,
               qualificacao: selectedQualificacao,
+              readOnlyAccess,
               canAccessAdminCards,
               canAccessFinancialDashboard,
               adminPermissions: canAccessAdminCards ? adminPermissions : null,
@@ -426,19 +435,33 @@ export const AcessosScreen: React.FC = () => {
                 {item.email && (
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>Email:</Text>
-                    <Text style={styles.value}>{item.email}</Text>
+                    <Text style={styles.value}>
+                      {shouldMaskSensitiveData
+                        ? maskEmail(item.email)
+                        : item.email}
+                    </Text>
                   </View>
                 )}
                 {item.telefone && (
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>Telefone:</Text>
-                    <Text style={styles.value}>{item.telefone}</Text>
+                    <Text style={styles.value}>
+                      {shouldMaskSensitiveData
+                        ? maskPhone(item.telefone)
+                        : item.telefone}
+                    </Text>
                   </View>
                 )}
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Criado em:</Text>
                   <Text style={styles.value}>
                     {formatDateBRL(item.createdAt)}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Modo:</Text>
+                  <Text style={styles.value}>
+                    {item.readOnlyAccess ? "Somente visualização" : "Completo"}
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
@@ -635,6 +658,34 @@ export const AcessosScreen: React.FC = () => {
                   secureTextEntry
                   editable={!isFormLoading}
                 />
+              </View>
+
+              {/* Acesso a Administração */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Modo de uso</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.permissionToggle,
+                    readOnlyAccess
+                      ? styles.permissionToggleActive
+                      : styles.permissionToggleInactive,
+                  ]}
+                  onPress={() => setReadOnlyAccess((prev) => !prev)}
+                  disabled={isFormLoading}
+                >
+                  <Text
+                    style={[
+                      styles.permissionToggleText,
+                      readOnlyAccess
+                        ? styles.permissionToggleTextActive
+                        : styles.permissionToggleTextInactive,
+                    ]}
+                  >
+                    {readOnlyAccess
+                      ? "Somente visualização"
+                      : "Acesso completo"}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               {/* Acesso a Administração */}

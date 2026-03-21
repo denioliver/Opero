@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import { Cliente } from "../../domains/clientes/types";
 import { useClients } from "../../contexts/ClientsContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
+import { maskDocument, maskEmail, maskPhone } from "../../utils/privacy";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -23,6 +25,7 @@ interface ClientsListProps {
   isLoading: boolean;
   onAddCliente: () => void;
   onEditCliente: (cliente: Cliente) => void;
+  canWrite?: boolean;
 }
 
 export function ClientsList({
@@ -30,8 +33,11 @@ export function ClientsList({
   isLoading,
   onAddCliente,
   onEditCliente,
+  canWrite = true,
 }: ClientsListProps) {
   const { deleteCliente, updateCliente, error } = useClients();
+  const { funcionario } = useFuncionario();
+  const shouldMaskSensitiveData = !!funcionario?.readOnlyAccess;
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "todos" | "ativo" | "bloqueado" | "inativo"
@@ -157,7 +163,11 @@ export function ClientsList({
           <Text style={styles.clienteName}>{item.nome}</Text>
           <View style={styles.clienteMetaRow}>
             <Text style={styles.metaLabel}>{getDocumentoLabel(item.tipo)}</Text>
-            <Text style={styles.clienteSubtitle}>{item.documento}</Text>
+            <Text style={styles.clienteSubtitle}>
+              {shouldMaskSensitiveData
+                ? maskDocument(item.documento)
+                : item.documento}
+            </Text>
             <View
               style={[
                 styles.statusBadge,
@@ -174,12 +184,18 @@ export function ClientsList({
           <View style={styles.inlineTable}>
             <View style={styles.tableLine}>
               <Text style={styles.tableKey}>Telefone</Text>
-              <Text style={styles.tableValue}>{item.telefone || "—"}</Text>
+              <Text style={styles.tableValue}>
+                {shouldMaskSensitiveData
+                  ? maskPhone(item.telefone)
+                  : item.telefone || "—"}
+              </Text>
             </View>
             <View style={styles.tableLine}>
               <Text style={styles.tableKey}>E-mail</Text>
               <Text numberOfLines={1} style={styles.tableValue}>
-                {item.email || "—"}
+                {shouldMaskSensitiveData
+                  ? maskEmail(item.email)
+                  : item.email || "—"}
               </Text>
             </View>
           </View>
@@ -187,56 +203,59 @@ export function ClientsList({
         <Text style={styles.arrowIcon}>›</Text>
       </TouchableOpacity>
 
-      <View style={styles.clienteActions}>
-        {item.status !== "inativo" && (
+      {canWrite && (
+        <View style={styles.clienteActions}>
+          {item.status !== "inativo" && (
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                item.status === "bloqueado"
+                  ? styles.editButton
+                  : styles.deleteButton,
+              ]}
+              onPress={() => handleToggleBlock(item)}
+              disabled={updatingStatusId === item.id}
+            >
+              {updatingStatusId === item.id ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Text
+                  style={[
+                    styles.actionButtonText,
+                    {
+                      color:
+                        item.status === "bloqueado" ? "#2563EB" : "#EF4444",
+                    },
+                  ]}
+                >
+                  {item.status === "bloqueado" ? "Desbloquear" : "Bloquear"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={[
-              styles.actionButton,
-              item.status === "bloqueado"
-                ? styles.editButton
-                : styles.deleteButton,
-            ]}
-            onPress={() => handleToggleBlock(item)}
-            disabled={updatingStatusId === item.id}
+            style={[styles.actionButton, styles.editButton]}
+            onPress={() => onEditCliente(item)}
           >
-            {updatingStatusId === item.id ? (
+            <Text style={styles.actionButtonText}>Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleDelete(item.id, item.nome)}
+            disabled={deletingId === item.id}
+          >
+            {deletingId === item.id ? (
               <ActivityIndicator size="small" color="#EF4444" />
             ) : (
-              <Text
-                style={[
-                  styles.actionButtonText,
-                  {
-                    color: item.status === "bloqueado" ? "#2563EB" : "#EF4444",
-                  },
-                ]}
-              >
-                {item.status === "bloqueado" ? "Desbloquear" : "Bloquear"}
+              <Text style={[styles.actionButtonText, { color: "#EF4444" }]}>
+                Arquivar
               </Text>
             )}
           </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.editButton]}
-          onPress={() => onEditCliente(item)}
-        >
-          <Text style={styles.actionButtonText}>Editar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
-          onPress={() => handleDelete(item.id, item.nome)}
-          disabled={deletingId === item.id}
-        >
-          {deletingId === item.id ? (
-            <ActivityIndicator size="small" color="#EF4444" />
-          ) : (
-            <Text style={[styles.actionButtonText, { color: "#EF4444" }]}>
-              Arquivar
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
     </View>
   );
 
@@ -245,9 +264,11 @@ export function ClientsList({
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Clientes</Text>
-        <TouchableOpacity style={styles.addButton} onPress={onAddCliente}>
-          <Text style={styles.addButtonText}>+ Novo</Text>
-        </TouchableOpacity>
+        {canWrite && (
+          <TouchableOpacity style={styles.addButton} onPress={onAddCliente}>
+            <Text style={styles.addButtonText}>+ Novo</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Erro */}

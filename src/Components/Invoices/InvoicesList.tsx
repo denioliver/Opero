@@ -10,6 +10,7 @@ import {
   TextInput,
 } from "react-native";
 import { useInvoices } from "../../contexts/InvoicesContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { Invoice, InvoiceStatus } from "../../types";
 import { formatCurrencyBRL, formatDateBRL } from "../../utils/formatters";
 
@@ -32,7 +33,9 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
 };
 
 export function InvoicesList({ onSelectInvoice }: InvoicesListProps) {
+  const { funcionario } = useFuncionario();
   const { invoices, isLoadingInvoices, loadInvoices } = useInvoices();
+  const canWrite = !funcionario?.readOnlyAccess;
   const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
@@ -54,7 +57,9 @@ export function InvoicesList({ onSelectInvoice }: InvoicesListProps) {
       <View style={styles.invoiceHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.invoiceNumber}>{item.invoiceNumber}</Text>
-          <Text style={styles.clientName}>{item.clientName || "Cliente"}</Text>
+          <Text style={styles.clientName}>
+            {canWrite ? item.clientName || "Cliente" : "Cliente oculto"}
+          </Text>
         </View>
         <View
           style={[
@@ -84,7 +89,7 @@ export function InvoicesList({ onSelectInvoice }: InvoicesListProps) {
         <View style={styles.tableLine}>
           <Text style={styles.detailLabel}>Total</Text>
           <Text style={styles.totalValue}>
-            {formatCurrencyBRL(item.totalValue)}
+            {canWrite ? formatCurrencyBRL(item.totalValue) : "Valor oculto"}
           </Text>
         </View>
       </View>
@@ -95,6 +100,11 @@ export function InvoicesList({ onSelectInvoice }: InvoicesListProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Notas Fiscais</Text>
+        {!canWrite && (
+          <Text style={styles.subtitle}>
+            Modo leitura: dados sensíveis ocultos
+          </Text>
+        )}
       </View>
 
       <View style={styles.searchContainer}>
@@ -152,6 +162,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
+  },
+  subtitle: {
+    fontSize: 12,
+    color: "#92400E",
+    marginTop: 2,
+    fontWeight: "600",
   },
   searchContainer: {
     paddingHorizontal: 16,

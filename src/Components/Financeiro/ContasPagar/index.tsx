@@ -9,9 +9,11 @@ import {
   View,
 } from "react-native";
 import { usePayables } from "../../../contexts/PayablesContext";
+import { useFuncionario } from "../../../contexts/FuncionarioContext";
 import { formatCurrencyBRL, formatDateBRL } from "../../../utils/formatters";
 
 export function ContasPagarScreen() {
+  const { funcionario } = useFuncionario();
   const {
     contasPagar,
     isLoadingContasPagar,
@@ -20,6 +22,7 @@ export function ContasPagarScreen() {
     atualizarAtrasosPagar,
     gerarRecorrencia,
   } = usePayables();
+  const canWrite = !funcionario?.readOnlyAccess;
 
   useEffect(() => {
     loadContasPagar().then(atualizarAtrasosPagar).catch(console.error);
@@ -47,6 +50,11 @@ export function ContasPagarScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Contas a Pagar</Text>
+        {!canWrite && (
+          <Text style={styles.subtitle}>
+            Modo leitura: dados sensíveis ocultos
+          </Text>
+        )}
       </View>
 
       <FlatList
@@ -57,10 +65,12 @@ export function ContasPagarScreen() {
           <View style={styles.card}>
             <View style={styles.rowBetween}>
               <Text style={styles.clientText}>
-                {item.fornecedorNome || item.descricao || "Despesa"}
+                {canWrite
+                  ? item.fornecedorNome || item.descricao || "Despesa"
+                  : "Fornecedor/Despesa oculto"}
               </Text>
               <Text style={styles.valueText}>
-                {formatCurrencyBRL(item.valor)}
+                {canWrite ? formatCurrencyBRL(item.valor) : "Valor oculto"}
               </Text>
             </View>
 
@@ -82,16 +92,18 @@ export function ContasPagarScreen() {
               </View>
             </View>
 
-            {item.status !== "pago" && item.status !== "cancelado" && (
-              <TouchableOpacity
-                style={styles.payButton}
-                onPress={() => handlePagar(item.contaPagarId)}
-              >
-                <Text style={styles.payButtonText}>
-                  Pagar fornecedor/despesa
-                </Text>
-              </TouchableOpacity>
-            )}
+            {canWrite &&
+              item.status !== "pago" &&
+              item.status !== "cancelado" && (
+                <TouchableOpacity
+                  style={styles.payButton}
+                  onPress={() => handlePagar(item.contaPagarId)}
+                >
+                  <Text style={styles.payButtonText}>
+                    Pagar fornecedor/despesa
+                  </Text>
+                </TouchableOpacity>
+              )}
           </View>
         )}
       />
@@ -111,6 +123,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   title: { fontSize: 22, fontWeight: "700", color: "#1F2937" },
+  subtitle: { fontSize: 12, color: "#92400E", marginTop: 2, fontWeight: "600" },
   listContent: { padding: 10, gap: 8 },
   card: {
     backgroundColor: "#fff",

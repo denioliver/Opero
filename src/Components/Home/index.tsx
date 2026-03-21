@@ -142,7 +142,7 @@ export const Home: React.FC = () => {
       if (user) {
         await logout();
       } else {
-        logoutFuncionario();
+        await logoutFuncionario();
       }
       // Navegação acontece automaticamente no App.tsx
     } catch (err) {

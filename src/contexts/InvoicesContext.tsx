@@ -16,6 +16,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { registrarAuditoria } from "../services/firebase/auditoriaService";
+import { requireDeviceSecurity } from "../utils/deviceSecurity";
 
 interface InvoicesContextType {
   invoices: Invoice[];
@@ -44,6 +45,15 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
   const [invoicesError, setInvoicesError] = useState<string | null>(null);
+
+  const assertCanWrite = async () => {
+    if (funcionario?.readOnlyAccess) {
+      throw new Error(
+        "Seu acesso está em modo somente visualização. Você pode apenas consultar dados.",
+      );
+    }
+    await requireDeviceSecurity("executar esta ação");
+  };
 
   const getActor = () => {
     if (!company?.companyId || !user?.id) return null;
@@ -106,6 +116,7 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
   const addInvoice = async (
     invoice: Omit<Invoice, "invoiceId" | "createdAt" | "updatedAt">,
   ) => {
+    await assertCanWrite();
     if (!company?.companyId) throw new Error("Empresa não encontrada");
 
     try {
@@ -153,6 +164,7 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
     invoiceId: string,
     updates: Partial<Invoice>,
   ) => {
+    await assertCanWrite();
     try {
       await updateDoc(doc(db, "invoices", invoiceId), {
         ...updates,
@@ -185,6 +197,7 @@ export function InvoicesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteInvoice = async (invoiceId: string) => {
+    await assertCanWrite();
     try {
       await deleteDoc(doc(db, "invoices", invoiceId));
       setInvoices((prev) => prev.filter((i) => i.invoiceId !== invoiceId));

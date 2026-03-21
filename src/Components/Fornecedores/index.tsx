@@ -5,12 +5,15 @@ import { SuppliersList } from "./SuppliersList";
 import { SupplierProfile } from "./SupplierProfile";
 import { SuppliersReports } from "./SuppliersReports";
 import { useSuppliers } from "../../contexts/SuppliersContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
 import { Fornecedor } from "../../domains/fornecedores/types";
 
 type ViewType = "lista" | "formulario" | "perfil" | "relatorios";
 
 export function FornecedoresScreen() {
   const { fornecedores, isLoading, loadFornecedores } = useSuppliers();
+  const { funcionario } = useFuncionario();
+  const canWrite = !funcionario?.readOnlyAccess;
 
   const [currentView, setCurrentView] = useState<ViewType>("lista");
   const [editingFornecedor, setEditingFornecedor] = useState<Fornecedor | null>(
@@ -31,6 +34,13 @@ export function FornecedoresScreen() {
   }, [loadFornecedores]);
 
   const handleAddNew = () => {
+    if (!canWrite) {
+      Alert.alert(
+        "Acesso somente visualização",
+        "Seu perfil permite apenas consultar os dados.",
+      );
+      return;
+    }
     setEditingFornecedor(null);
     setCurrentView("formulario");
   };
@@ -101,6 +111,7 @@ export function FornecedoresScreen() {
       onAddNew={handleAddNew}
       onEdit={handleProfile}
       onOpenReports={() => setCurrentView("relatorios")}
+      canWrite={canWrite}
     />
   );
 }

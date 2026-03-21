@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { Fornecedor } from "../../domains/fornecedores/types";
 import { useSuppliers } from "../../contexts/SuppliersContext";
+import { useFuncionario } from "../../contexts/FuncionarioContext";
+import { maskDocument, maskPhone } from "../../utils/privacy";
 
 interface SuppliersListProps {
   fornecedores: Fornecedor[];
@@ -18,6 +20,7 @@ interface SuppliersListProps {
   onAddNew: () => void;
   onEdit: (fornecedor: Fornecedor) => void;
   onOpenReports: () => void;
+  canWrite?: boolean;
 }
 
 export function SuppliersList({
@@ -26,8 +29,11 @@ export function SuppliersList({
   onAddNew,
   onEdit,
   onOpenReports,
+  canWrite = true,
 }: SuppliersListProps) {
   const { deleteFornecedor, updateFornecedor } = useSuppliers();
+  const { funcionario } = useFuncionario();
+  const shouldMaskSensitiveData = !!funcionario?.readOnlyAccess;
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "todos" | "ativo" | "bloqueado" | "inativo"
@@ -113,8 +119,16 @@ export function SuppliersList({
       <TouchableOpacity style={styles.cardMain} onPress={() => onEdit(item)}>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{item.nome}</Text>
-          <Text style={styles.meta}>{item.cpfCnpj}</Text>
-          <Text style={styles.meta}>{item.telefone || "Sem telefone"}</Text>
+          <Text style={styles.meta}>
+            {shouldMaskSensitiveData
+              ? maskDocument(item.cpfCnpj)
+              : item.cpfCnpj}
+          </Text>
+          <Text style={styles.meta}>
+            {shouldMaskSensitiveData
+              ? maskPhone(item.telefone)
+              : item.telefone || "Sem telefone"}
+          </Text>
           <Text style={styles.meta}>
             Produtos vinculados: {item.produtosFornecidos?.length || 0}
           </Text>
@@ -133,42 +147,44 @@ export function SuppliersList({
         </View>
       </TouchableOpacity>
 
-      <View style={styles.actions}>
-        {item.status !== "inativo" ? (
+      {canWrite && (
+        <View style={styles.actions}>
+          {item.status !== "inativo" ? (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.warningAction]}
+              onPress={() => handleToggleBlock(item)}
+              disabled={loadingId === item.id}
+            >
+              {loadingId === item.id ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.actionText}>
+                  {item.status === "bloqueado" ? "Desbloquear" : "Bloquear"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          ) : null}
+
           <TouchableOpacity
-            style={[styles.actionButton, styles.warningAction]}
-            onPress={() => handleToggleBlock(item)}
+            style={[styles.actionButton, styles.primaryAction]}
+            onPress={() => onEdit(item)}
+          >
+            <Text style={styles.actionText}>Editar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.dangerAction]}
+            onPress={() => handleArchive(item)}
             disabled={loadingId === item.id}
           >
             {loadingId === item.id ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.actionText}>
-                {item.status === "bloqueado" ? "Desbloquear" : "Bloquear"}
-              </Text>
+              <Text style={styles.actionText}>Arquivar</Text>
             )}
           </TouchableOpacity>
-        ) : null}
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.primaryAction]}
-          onPress={() => onEdit(item)}
-        >
-          <Text style={styles.actionText}>Editar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.dangerAction]}
-          onPress={() => handleArchive(item)}
-          disabled={loadingId === item.id}
-        >
-          {loadingId === item.id ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.actionText}>Arquivar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
     </View>
   );
 
@@ -183,9 +199,11 @@ export function SuppliersList({
           >
             <Text style={styles.secondaryButtonText}>Relatórios</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.primaryButton} onPress={onAddNew}>
-            <Text style={styles.primaryButtonText}>+ Novo</Text>
-          </TouchableOpacity>
+          {canWrite && (
+            <TouchableOpacity style={styles.primaryButton} onPress={onAddNew}>
+              <Text style={styles.primaryButtonText}>+ Novo</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

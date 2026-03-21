@@ -31,6 +31,7 @@ import {
   formatDateTimeBRL,
   formatPercentBRL,
 } from "../../utils/formatters";
+import { maskEmail } from "../../utils/privacy";
 
 type ExportHistoryItem = {
   id: string;
@@ -133,6 +134,12 @@ export const RelatoriosScreen: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState("");
   const [exportHistory, setExportHistory] = useState<ExportHistoryItem[]>([]);
+  const shouldMaskFinancialData = !!funcionario?.readOnlyAccess;
+
+  const safeCurrency = (value: number) =>
+    shouldMaskFinancialData ? "Valor oculto" : formatCurrency(value);
+  const safePercent = (value: number) =>
+    shouldMaskFinancialData ? "Oculto" : formatPercent(value);
 
   const isProprietario = user?.role === "users";
 
@@ -493,12 +500,12 @@ export const RelatoriosScreen: React.FC = () => {
     Alert.alert(
       "Resumo executivo",
       [
-        `Receita realizada: ${formatCurrency(metrics.receitaRealizada)}`,
-        `Receita em aberto: ${formatCurrency(metrics.receitaEmAberto)}`,
-        `Valor atrasado: ${formatCurrency(metrics.valorAtrasado)}`,
-        `Taxa de conclusão de OS: ${formatPercent(metrics.taxaConclusao)}`,
-        `Ticket médio: ${formatCurrency(metrics.ticketMedio)}`,
-        `Compras em fornecedores: ${formatCurrency(metrics.totalComprasFornecedor)}`,
+        `Receita realizada: ${safeCurrency(metrics.receitaRealizada)}`,
+        `Receita em aberto: ${safeCurrency(metrics.receitaEmAberto)}`,
+        `Valor atrasado: ${safeCurrency(metrics.valorAtrasado)}`,
+        `Taxa de conclusão de OS: ${safePercent(metrics.taxaConclusao)}`,
+        `Ticket médio: ${safeCurrency(metrics.ticketMedio)}`,
+        `Compras em fornecedores: ${safeCurrency(metrics.totalComprasFornecedor)}`,
       ].join("\n"),
     );
   };
@@ -550,7 +557,7 @@ export const RelatoriosScreen: React.FC = () => {
         },
         {
           label: "Compras em fornecedores",
-          value: formatCurrency(metrics.totalComprasFornecedor),
+          value: safeCurrency(metrics.totalComprasFornecedor),
         },
         {
           label: "Qtd compras fornecedores",
@@ -558,23 +565,23 @@ export const RelatoriosScreen: React.FC = () => {
         },
         {
           label: "Receita realizada",
-          value: formatCurrency(metrics.receitaRealizada),
+          value: safeCurrency(metrics.receitaRealizada),
         },
         {
           label: "Receita em aberto",
-          value: formatCurrency(metrics.receitaEmAberto),
+          value: safeCurrency(metrics.receitaEmAberto),
         },
         {
           label: "Valor atrasado",
-          value: formatCurrency(metrics.valorAtrasado),
+          value: safeCurrency(metrics.valorAtrasado),
         },
         {
           label: "Ticket médio OS",
-          value: formatCurrency(metrics.ticketMedio),
+          value: safeCurrency(metrics.ticketMedio),
         },
         {
           label: "Taxa de conclusão",
-          value: formatPercent(metrics.taxaConclusao),
+          value: safePercent(metrics.taxaConclusao),
         },
         {
           label: "Volume no período",
@@ -591,11 +598,11 @@ export const RelatoriosScreen: React.FC = () => {
       })),
       topClientes: topClientes.map((item) => ({
         label: item.nome,
-        value: formatCurrency(item.valor),
+        value: safeCurrency(item.valor),
       })),
       topProdutos: topProdutos.map((item) => ({
         label: item.nome,
-        value: formatCurrency(item.valor),
+        value: safeCurrency(item.valor),
       })),
     };
   };
@@ -666,11 +673,11 @@ export const RelatoriosScreen: React.FC = () => {
         "",
         `Segue o resumo executivo do período ${periodLabel}.`,
         "",
-        `Receita realizada: ${formatCurrency(metrics.receitaRealizada)}`,
-        `Receita em aberto: ${formatCurrency(metrics.receitaEmAberto)}`,
-        `Valor atrasado: ${formatCurrency(metrics.valorAtrasado)}`,
-        `Taxa de conclusão OS: ${formatPercent(metrics.taxaConclusao)}`,
-        `Compras em fornecedores: ${formatCurrency(metrics.totalComprasFornecedor)}`,
+        `Receita realizada: ${safeCurrency(metrics.receitaRealizada)}`,
+        `Receita em aberto: ${safeCurrency(metrics.receitaEmAberto)}`,
+        `Valor atrasado: ${safeCurrency(metrics.valorAtrasado)}`,
+        `Taxa de conclusão OS: ${safePercent(metrics.taxaConclusao)}`,
+        `Compras em fornecedores: ${safeCurrency(metrics.totalComprasFornecedor)}`,
         "",
         "Arquivo em PDF anexado.",
         "",
@@ -717,6 +724,11 @@ export const RelatoriosScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Relatórios</Text>
         <Text style={styles.subtitle}>Painel analítico da operação</Text>
+        {shouldMaskFinancialData && (
+          <Text style={styles.readonlyHint}>
+            Modo leitura: KPIs financeiros ocultos
+          </Text>
+        )}
       </View>
 
       {isLoading ? (
@@ -830,25 +842,25 @@ export const RelatoriosScreen: React.FC = () => {
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Receita realizada</Text>
               <Text style={styles.metricValue}>
-                {formatCurrency(metrics.receitaRealizada)}
+                {safeCurrency(metrics.receitaRealizada)}
               </Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Receita em aberto</Text>
               <Text style={styles.metricValue}>
-                {formatCurrency(metrics.receitaEmAberto)}
+                {safeCurrency(metrics.receitaEmAberto)}
               </Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Valor atrasado</Text>
               <Text style={[styles.metricValue, { color: "#DC2626" }]}>
-                {formatCurrency(metrics.valorAtrasado)}
+                {safeCurrency(metrics.valorAtrasado)}
               </Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Ticket médio OS</Text>
               <Text style={styles.metricValue}>
-                {formatCurrency(metrics.ticketMedio)}
+                {safeCurrency(metrics.ticketMedio)}
               </Text>
             </View>
             <View style={styles.metricCard}>
@@ -866,13 +878,13 @@ export const RelatoriosScreen: React.FC = () => {
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Lucro estimado</Text>
               <Text style={styles.metricValue}>
-                {formatCurrency(metrics.lucroEstimado)}
+                {safeCurrency(metrics.lucroEstimado)}
               </Text>
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Contas a receber</Text>
               <Text style={styles.metricValue}>
-                {formatCurrency(
+                {safeCurrency(
                   metrics.contasReceberPendente + metrics.contasReceberAtrasado,
                 )}
               </Text>
@@ -880,7 +892,7 @@ export const RelatoriosScreen: React.FC = () => {
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Contas a pagar</Text>
               <Text style={styles.metricValue}>
-                {formatCurrency(
+                {safeCurrency(
                   metrics.contasPagarPendente + metrics.contasPagarAtrasado,
                 )}
               </Text>
@@ -896,7 +908,7 @@ export const RelatoriosScreen: React.FC = () => {
                 <View key={item.mes} style={styles.inlineRow}>
                   <Text style={styles.rowLabel}>{item.mes}</Text>
                   <Text style={styles.rowValue}>
-                    {formatCurrency(item.valor)}
+                    {safeCurrency(item.valor)}
                   </Text>
                 </View>
               ))
@@ -932,7 +944,7 @@ export const RelatoriosScreen: React.FC = () => {
             <View style={styles.inlineRow}>
               <Text style={styles.rowLabel}>Compras em fornecedores</Text>
               <Text style={styles.rowValue}>
-                {formatCurrency(metrics.totalComprasFornecedor)}
+                {safeCurrency(metrics.totalComprasFornecedor)}
               </Text>
             </View>
             <View style={styles.inlineRow}>
@@ -1004,7 +1016,7 @@ export const RelatoriosScreen: React.FC = () => {
                     {index + 1}. {item.nome}
                   </Text>
                   <Text style={styles.rowValue}>
-                    {formatCurrency(item.valor)}
+                    {safeCurrency(item.valor)}
                   </Text>
                 </View>
               ))
@@ -1024,7 +1036,7 @@ export const RelatoriosScreen: React.FC = () => {
                     {index + 1}. {item.nome}
                   </Text>
                   <Text style={styles.rowValue}>
-                    {formatCurrency(item.valor)}
+                    {safeCurrency(item.valor)}
                   </Text>
                 </View>
               ))
@@ -1044,7 +1056,7 @@ export const RelatoriosScreen: React.FC = () => {
                     {index + 1}. {item.nome}
                   </Text>
                   <Text style={styles.rowValue}>
-                    {item.quantidade} compra(s) • {formatCurrency(item.total)}
+                    {item.quantidade} compra(s) • {safeCurrency(item.total)}
                   </Text>
                 </View>
               ))
@@ -1073,7 +1085,9 @@ export const RelatoriosScreen: React.FC = () => {
                     </Text>
                     {!!item.destination && (
                       <Text style={styles.historyDestination}>
-                        {item.destination}
+                        {shouldMaskFinancialData
+                          ? maskEmail(item.destination)
+                          : item.destination}
                       </Text>
                     )}
                   </View>
@@ -1108,6 +1122,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     color: "#D1D5DB",
+  },
+  readonlyHint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#FCD34D",
+    fontWeight: "600",
   },
   loadingArea: {
     flex: 1,
